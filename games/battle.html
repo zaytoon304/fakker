@@ -149,6 +149,7 @@
 <script>
 const profile = Fakker.Profile.get();
 if (!profile) location.href = "../index.html";
+if (!Fakker.CheckIns.isCheckedIn()) location.href = "../index.html";
 
 Fakker.mountSettingsToggle();
 function refreshWallet() { document.getElementById("wallet-pill").textContent = "🪙 " + Fakker.Wallet.get().balance; }

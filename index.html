@@ -241,6 +241,7 @@
 <div class="topbar">
   <div class="brand"><span class="logo-emoji">🧠</span> فكّر</div>
   <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
+    <span class="pill" id="session-pill" hidden style="cursor:pointer;" title="اضغط لإنهاء الحصة"></span>
     <span class="pill" id="wallet-pill" hidden>🪙 0</span>
     <a href="store.html" class="pill" id="store-link" hidden>🎁 المتجر</a>
     <div id="student-badge" class="pill student-pill" hidden>
@@ -251,8 +252,31 @@
   </div>
 </div>
 
+<!-- بوابة حصة الانتظار: لازم تُملأ كل مرة قبل فتح أي لعبة -->
+<section id="checkin-screen" class="center-screen">
+  <div class="card" style="max-width:420px; margin:0 auto; text-align:center;">
+    <h2>⏳ حصة انتظار</h2>
+    <p style="margin-top:8px;">قبل ما نبدأ، سجّلوا بيانات الحصة</p>
+    <input id="checkin-class" type="text" maxlength="30" placeholder="اسم الفصل (مثال: خامس أ)" style="width:100%; padding:14px 16px; font-size:16px; font-family:inherit; border-radius:var(--radius-md); border:2px solid var(--accent-soft); text-align:center; margin:14px 0 10px;">
+    <select id="checkin-period" style="width:100%; padding:14px 16px; font-size:16px; font-family:inherit; border-radius:var(--radius-md); border:2px solid var(--accent-soft); text-align:center; margin-bottom:10px; background:#fff; color:var(--text);">
+      <option value="">اختر الحصة</option>
+      <option value="الأولى">الحصة الأولى</option>
+      <option value="الثانية">الحصة الثانية</option>
+      <option value="الثالثة">الحصة الثالثة</option>
+      <option value="الرابعة">الحصة الرابعة</option>
+      <option value="الخامسة">الحصة الخامسة</option>
+      <option value="السادسة">الحصة السادسة</option>
+      <option value="السابعة">الحصة السابعة</option>
+      <option value="الثامنة">الحصة الثامنة</option>
+    </select>
+    <input id="checkin-note" type="text" maxlength="40" placeholder="ملاحظة (اختياري)" style="width:100%; padding:14px 16px; font-size:15px; font-family:inherit; border-radius:var(--radius-md); border:2px solid var(--accent-soft); text-align:center; margin-bottom:16px;">
+    <button class="big-btn" id="checkin-btn" style="width:100%;">دخول ✅</button>
+    <p id="checkin-error" style="color:#dc2626; margin-top:10px; font-size:13px;" hidden>اكتب اسم الفصل واختر الحصة أول</p>
+  </div>
+</section>
+
 <!-- شاشة الترحيب: إدخال الاسم واختيار الشخصية -->
-<section id="welcome-screen" class="center-screen">
+<section id="welcome-screen" class="center-screen" hidden>
   <div class="card">
     <h2>أهلاً فيك! 👋</h2>
     <p style="margin-top:8px;">وش اسمك؟</p>
@@ -424,16 +448,49 @@
     goHome();
   };
 
+  // ---- بوابة حصة الانتظار: تُطلب كل مرة (بورد مشترك بين فصول مختلفة) ----
+  document.getElementById("checkin-btn").onclick = () => {
+    const className = document.getElementById("checkin-class").value.trim();
+    const period = document.getElementById("checkin-period").value;
+    const note = document.getElementById("checkin-note").value.trim();
+    if (!className || !period) {
+      document.getElementById("checkin-error").hidden = false;
+      return;
+    }
+    Fakker.CheckIns.log(className, period, note);
+    document.getElementById("checkin-screen").hidden = true;
+    afterCheckin();
+  };
+
+  function afterCheckin() {
+    const info = Fakker.CheckIns.currentSession();
+    if (info) {
+      const pill = document.getElementById("session-pill");
+      pill.hidden = false;
+      pill.textContent = "🏫 " + info.className + " — حصة " + info.period;
+      pill.onclick = () => {
+        if (confirm("تبي تنهي هذي الحصة؟ راح يُطلب تسجيل فصل وحصة جديدة.")) {
+          Fakker.CheckIns.endSession();
+          location.reload();
+        }
+      };
+    }
+    const existing = Fakker.Profile.get();
+    if (existing) {
+      showStudentBadge(existing);
+      goHome();
+    } else {
+      document.getElementById("welcome-screen").hidden = false;
+    }
+  }
+
   // بدء التشغيل
   Fakker.mountSettingsToggle();
   renderAvatarGrid();
   renderLevels();
-  const existing = Fakker.Profile.get();
-  if (existing) {
-    showStudentBadge(existing);
-    goHome();
-  } else {
-    document.getElementById("welcome-screen").hidden = false;
+  if (Fakker.CheckIns.isCheckedIn()) {
+    document.getElementById("checkin-screen").hidden = true;
+    afterCheckin();
   }
 </script>
 </body>

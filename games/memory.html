@@ -238,9 +238,10 @@
   const levelId = parseInt(params.get("level")) || 1;
   const theme = LEVEL_THEMES[levelId] || LEVEL_THEMES[1];
 
-  // حماية بسيطة: لازم يكون في بروفايل
+  // حماية بسيطة: لازم يكون في بروفايل وحصة انتظار مسجَّلة
   const profile = Fakker.Profile.get();
   if (!profile) { location.href = "../index.html"; }
+  if (!Fakker.CheckIns.isCheckedIn()) { location.href = "../index.html"; }
 
   document.getElementById("theme-emoji").textContent = theme.emoji;
   document.getElementById("theme-title").textContent = theme.title;

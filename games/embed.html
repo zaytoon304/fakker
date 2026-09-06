@@ -56,7 +56,10 @@
   <iframe id="e-frame" allow="fullscreen" title="لعبة خارجية"></iframe>
 </div>
 
+<script src="../shared/progress.js"></script>
 <script>
+  if (!Fakker.Profile.get() || !Fakker.CheckIns.isCheckedIn()) location.href = "../index.html";
+
   const params = new URLSearchParams(location.search);
   const src = params.get("src") || "";
   document.getElementById("e-emoji").textContent = params.get("emoji") || "🎮";

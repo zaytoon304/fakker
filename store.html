@@ -141,6 +141,7 @@
 <script>
 const profile = Fakker.Profile.get();
 if (!profile) location.href = "index.html";
+if (!Fakker.CheckIns.isCheckedIn()) location.href = "index.html";
 Fakker.mountSettingsToggle();
 
 document.getElementById("greeting").textContent = profile.name + "، اشترِ مكافآت رقمية أو واقعية بنقاطك!";

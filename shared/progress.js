@@ -98,6 +98,32 @@ Fakker.Progress = {
   },
 };
 
+// بوابة حصة الانتظار — تُطلب مرة كل جلسة متصفح (بورد مشترك بين فصول مختلفة طول اليوم)
+Fakker.CheckIns = {
+  LOG_KEY: "fakker_checkins",
+  SESSION_FLAG: "fakker_checkin_active",
+  SESSION_INFO: "fakker_checkin_info",
+  isCheckedIn() { return sessionStorage.getItem(this.SESSION_FLAG) === "1"; },
+  currentSession() {
+    try { return JSON.parse(sessionStorage.getItem(this.SESSION_INFO)); } catch (e) { return null; }
+  },
+  log(className, period, note) {
+    let list = [];
+    try { list = JSON.parse(localStorage.getItem(this.LOG_KEY)) || []; } catch (e) { list = []; }
+    list.push({ className, period, note, ts: Date.now() });
+    if (list.length > 300) list = list.slice(-300);
+    localStorage.setItem(this.LOG_KEY, JSON.stringify(list));
+    sessionStorage.setItem(this.SESSION_FLAG, "1");
+    sessionStorage.setItem(this.SESSION_INFO, JSON.stringify({ className, period, note }));
+  },
+  list(limit) {
+    let all = [];
+    try { all = JSON.parse(localStorage.getItem(this.LOG_KEY)) || []; } catch (e) { all = []; }
+    return all.slice(-(limit || 100)).reverse();
+  },
+  endSession() { sessionStorage.removeItem(this.SESSION_FLAG); sessionStorage.removeItem(this.SESSION_INFO); },
+};
+
 // تحدي اليوم — ستريك يومي بأسلوب Wordle/Duolingo (يعمل بمعزل عن نجوم الألعاب)
 Fakker.Daily = {
   KEY: "fakker_daily",

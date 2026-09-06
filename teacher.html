@@ -91,6 +91,7 @@
   <div class="tabs">
     <div class="tab-btn active" data-tab="requests">طلبات الاستبدال</div>
     <div class="tab-btn" data-tab="rewards">إدارة المكافآت</div>
+    <div class="tab-btn" data-tab="checkins">سجل حصص الانتظار</div>
     <div class="tab-btn" data-tab="config">إعدادات النقاط</div>
     <div class="tab-btn" data-tab="ledger">سجل هذا الجهاز</div>
     <div class="tab-btn" data-tab="security">الأمان</div>
@@ -98,6 +99,7 @@
 
   <div class="tab-panel" id="panel-requests"></div>
   <div class="tab-panel" id="panel-rewards" hidden></div>
+  <div class="tab-panel" id="panel-checkins" hidden></div>
   <div class="tab-panel" id="panel-config" hidden></div>
   <div class="tab-panel" id="panel-ledger" hidden></div>
   <div class="tab-panel" id="panel-security" hidden></div>
@@ -140,9 +142,28 @@ document.querySelectorAll(".tab-btn").forEach((btn) => {
 function renderAll() {
   renderRequests();
   renderRewards();
+  renderCheckins();
   renderConfig();
   renderLedger();
   renderSecurity();
+}
+
+// ---------- سجل حصص الانتظار ----------
+function renderCheckins() {
+  const panel = document.getElementById("panel-checkins");
+  const entries = Fakker.CheckIns.list(200);
+  if (!entries.length) { panel.innerHTML = `<p style="text-align:center;">لا يوجد تسجيل دخول بعد.</p>`; return; }
+  panel.innerHTML = `<p style="text-align:center;margin-bottom:10px;font-size:13px;color:var(--text-soft);">آخر ${entries.length} تسجيل دخول لهذا الجهاز</p>`;
+  const box = document.createElement("div");
+  box.className = "card";
+  entries.forEach((e) => {
+    const row = document.createElement("div");
+    row.className = "ledger-row";
+    const date = new Date(e.ts).toLocaleString("ar-SA", { dateStyle: "short", timeStyle: "short" });
+    row.innerHTML = `<span>🏫 ${e.className} — حصة ${e.period}${e.note ? " (" + e.note + ")" : ""}</span><span style="color:var(--text-soft);font-size:12px;">${date}</span>`;
+    box.appendChild(row);
+  });
+  panel.appendChild(box);
 }
 
 // ---------- طلبات الاستبدال ----------
