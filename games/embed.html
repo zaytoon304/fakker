@@ -67,6 +67,8 @@
   document.getElementById("e-subtitle").textContent = params.get("subtitle") || "";
   document.getElementById("e-frame").src = src;
   document.getElementById("e-openTab").href = src;
+  const gid = params.get("id");
+  if (gid) Fakker.Analytics.logPlay(gid);
 </script>
 </body>
 </html>

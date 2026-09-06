@@ -576,6 +576,7 @@ function onGameOver(outcome) {
   let bonus = null;
   if (vsMode === "ai") {
     Fakker.Progress.record("xo", levelId, { stars, score: stars });
+    Fakker.Analytics.logPlay("xo");
     bonus = Fakker.Economy.awardCompletion("إكس أو");
     refreshWallet();
   }

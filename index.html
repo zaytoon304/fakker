@@ -293,6 +293,9 @@
     <div class="logo">🧠</div>
     <h1>فكّر</h1>
     <p id="hero-greeting">اختر مستواك الدراسي وابدأ التحدي!</p>
+    <div id="new-session-row" hidden style="margin-top:10px;">
+      <span class="pill" id="new-session-btn" style="cursor:pointer; background:var(--accent-soft); color:var(--accent);">🔄 فصل ثاني؟ ابدأ حصة جديدة</span>
+    </div>
   </div>
 
   <a href="games/daily.html" class="daily-banner" id="daily-banner">
@@ -422,7 +425,7 @@
       `;
       el.onclick = () => {
         if (game.external) {
-          const q = new URLSearchParams({ src: game.src, title: game.name, subtitle: game.desc, emoji: game.emoji });
+          const q = new URLSearchParams({ src: game.src, title: game.name, subtitle: game.desc, emoji: game.emoji, id: game.id });
           window.location.href = "games/embed.html?" + q.toString();
         } else {
           window.location.href = game.file + "?level=" + level.id;
@@ -462,18 +465,22 @@
     afterCheckin();
   };
 
+  function startNewSession() {
+    if (confirm("تبي تنهي هذي الحصة وتبدأ حصة جديدة (فصل/حصة مختلفة)؟")) {
+      Fakker.CheckIns.endSession();
+      location.reload();
+    }
+  }
+
   function afterCheckin() {
     const info = Fakker.CheckIns.currentSession();
     if (info) {
       const pill = document.getElementById("session-pill");
       pill.hidden = false;
       pill.textContent = "🏫 " + info.className + " — حصة " + info.period;
-      pill.onclick = () => {
-        if (confirm("تبي تنهي هذي الحصة؟ راح يُطلب تسجيل فصل وحصة جديدة.")) {
-          Fakker.CheckIns.endSession();
-          location.reload();
-        }
-      };
+      pill.onclick = startNewSession;
+      document.getElementById("new-session-row").hidden = false;
+      document.getElementById("new-session-btn").onclick = startNewSession;
     }
     const existing = Fakker.Profile.get();
     if (existing) {

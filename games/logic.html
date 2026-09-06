@@ -303,6 +303,7 @@ function computeStars() {
 function endSession() {
   const stars = computeStars();
   Fakker.Progress.record("logic", levelId, { stars, score: session.correctCount });
+  Fakker.Analytics.logPlay("logic");
   Fakker.Economy.awardCompletion("ألغاز التفكير");
   refreshWallet();
   Fakker.FX.confetti();

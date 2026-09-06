@@ -357,6 +357,7 @@ function computeStars() {
 function onWin() {
   const stars = computeStars();
   Fakker.Progress.record("sudoku", levelId, { stars, score: N });
+  Fakker.Analytics.logPlay("sudoku");
   const bonus = Fakker.Economy.awardCompletion("سودوكو");
   refreshWallet();
   Fakker.FX.confetti();

@@ -334,6 +334,7 @@
   function onWin() {
     const stars = computeStars();
     Fakker.Progress.record("memory", levelId, { stars, score: moves });
+    Fakker.Analytics.logPlay("memory");
     const bonus = Fakker.Economy.awardCompletion("لعبة الذاكرة");
     refreshWallet();
     Fakker.FX.confetti();

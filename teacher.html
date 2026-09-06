@@ -56,6 +56,18 @@
 
   .ledger-row { display: flex; justify-content: space-between; font-size: 13px; padding: 8px 14px; border-bottom: 1px solid var(--accent-soft); }
 
+  .stat-cards { display: grid; grid-template-columns: repeat(auto-fit,minmax(160px,1fr)); gap: 12px; max-width: 700px; margin: 0 auto 24px; }
+  .stat-card { background: var(--card-bg); border-radius: 14px; padding: 16px; box-shadow: 0 4px 12px var(--shadow); text-align: center; }
+  .stat-card .num { font-size: 28px; font-weight: 900; color: var(--accent); }
+  .stat-card .lbl { font-size: 12px; color: var(--text-soft); font-weight: 700; margin-top: 4px; }
+
+  .bar-row { display: flex; align-items: center; gap: 10px; padding: 8px 0; }
+  .bar-row .bar-label { width: 160px; flex-shrink: 0; font-size: 13px; font-weight: 700; text-align: right; }
+  .bar-track { flex: 1; background: var(--accent-soft); border-radius: 999px; height: 20px; overflow: hidden; }
+  .bar-fill { height: 100%; background: linear-gradient(90deg, var(--accent), #a78bfa); border-radius: 999px; transition: width .3s ease; }
+  .bar-count { width: 34px; flex-shrink: 0; font-weight: 800; font-size: 13px; text-align: center; }
+  .bar-row.zero .bar-label { color: #dc2626; }
+
   [hidden] { display: none !important; }
 </style>
 </head>
@@ -91,6 +103,7 @@
   <div class="tabs">
     <div class="tab-btn active" data-tab="requests">طلبات الاستبدال</div>
     <div class="tab-btn" data-tab="rewards">إدارة المكافآت</div>
+    <div class="tab-btn" data-tab="stats">📊 الإحصائيات</div>
     <div class="tab-btn" data-tab="checkins">سجل حصص الانتظار</div>
     <div class="tab-btn" data-tab="config">إعدادات النقاط</div>
     <div class="tab-btn" data-tab="ledger">سجل هذا الجهاز</div>
@@ -99,6 +112,7 @@
 
   <div class="tab-panel" id="panel-requests"></div>
   <div class="tab-panel" id="panel-rewards" hidden></div>
+  <div class="tab-panel" id="panel-stats" hidden></div>
   <div class="tab-panel" id="panel-checkins" hidden></div>
   <div class="tab-panel" id="panel-config" hidden></div>
   <div class="tab-panel" id="panel-ledger" hidden></div>
@@ -142,10 +156,53 @@ document.querySelectorAll(".tab-btn").forEach((btn) => {
 function renderAll() {
   renderRequests();
   renderRewards();
+  renderStats();
   renderCheckins();
   renderConfig();
   renderLedger();
   renderSecurity();
+}
+
+// ---------- الإحصائيات ----------
+function renderStats() {
+  const panel = document.getElementById("panel-stats");
+  const weekCheckins = Fakker.CheckIns.countSince(7);
+  const totalCheckins = Fakker.CheckIns.countAll();
+  const counts = Fakker.Analytics.countsByGame();
+  const rows = FAKKER_GAMES.map((g) => ({ name: g.name, emoji: g.emoji, count: counts[g.id] || 0 }))
+    .sort((a, b) => b.count - a.count);
+  const maxCount = Math.max(1, ...rows.map((r) => r.count));
+
+  panel.innerHTML = `
+    <div class="stat-cards">
+      <div class="stat-card"><div class="num">${weekCheckins}</div><div class="lbl">⏳ حصص انتظار هذا الأسبوع</div></div>
+      <div class="stat-card"><div class="num">${totalCheckins}</div><div class="lbl">📅 إجمالي حصص الانتظار</div></div>
+      <div class="stat-card"><div class="num">${Fakker.Analytics.totalPlays()}</div><div class="lbl">🎮 إجمالي مرات اللعب</div></div>
+    </div>
+    <p style="text-align:center;font-weight:800;margin-bottom:10px;">الألعاب الأكثر والأقل استخداماً</p>
+  `;
+  const box = document.createElement("div");
+  box.className = "card";
+  box.style.maxWidth = "700px";
+  box.style.margin = "0 auto";
+  rows.forEach((r) => {
+    const row = document.createElement("div");
+    row.className = "bar-row" + (r.count === 0 ? " zero" : "");
+    const pct = (r.count / maxCount) * 100;
+    row.innerHTML = `
+      <div class="bar-label">${r.emoji} ${r.name}</div>
+      <div class="bar-track"><div class="bar-fill" style="width:${pct}%;"></div></div>
+      <div class="bar-count">${r.count}</div>`;
+    box.appendChild(row);
+  });
+  panel.appendChild(box);
+  const zeroGames = rows.filter((r) => r.count === 0);
+  if (zeroGames.length) {
+    const note = document.createElement("p");
+    note.style.cssText = "text-align:center;margin-top:14px;font-size:13px;color:#dc2626;";
+    note.textContent = "⚠️ لم تُلعب بعد: " + zeroGames.map((g) => g.name).join("، ") + " — فكّر تطوّرها أو تبرزها أكثر بالمنصة";
+    panel.appendChild(note);
+  }
 }
 
 // ---------- سجل حصص الانتظار ----------

@@ -121,7 +121,36 @@ Fakker.CheckIns = {
     try { all = JSON.parse(localStorage.getItem(this.LOG_KEY)) || []; } catch (e) { all = []; }
     return all.slice(-(limit || 100)).reverse();
   },
+  _all() {
+    try { return JSON.parse(localStorage.getItem(this.LOG_KEY)) || []; } catch (e) { return []; }
+  },
+  countAll() { return this._all().length; },
+  countSince(days) {
+    const cutoff = Date.now() - days * 86400000;
+    return this._all().filter((e) => e.ts >= cutoff).length;
+  },
   endSession() { sessionStorage.removeItem(this.SESSION_FLAG); sessionStorage.removeItem(this.SESSION_INFO); },
+};
+
+// إحصائيات الاستخدام: كم مرة لُعبت كل لعبة (لمعرفة الأكثر/الأقل استخداماً)
+Fakker.Analytics = {
+  KEY: "fakker_analytics_plays",
+  logPlay(gameId) {
+    let list = [];
+    try { list = JSON.parse(localStorage.getItem(this.KEY)) || []; } catch (e) { list = []; }
+    list.push({ gameId, ts: Date.now() });
+    if (list.length > 3000) list = list.slice(-3000);
+    localStorage.setItem(this.KEY, JSON.stringify(list));
+  },
+  allPlays() {
+    try { return JSON.parse(localStorage.getItem(this.KEY)) || []; } catch (e) { return []; }
+  },
+  countsByGame() {
+    const counts = {};
+    this.allPlays().forEach((p) => { counts[p.gameId] = (counts[p.gameId] || 0) + 1; });
+    return counts;
+  },
+  totalPlays() { return this.allPlays().length; },
 };
 
 // تحدي اليوم — ستريك يومي بأسلوب Wordle/Duolingo (يعمل بمعزل عن نجوم الألعاب)

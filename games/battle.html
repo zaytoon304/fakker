@@ -325,6 +325,7 @@ function computeStars(kind) {
 function endBattle(kind) {
   const stars = computeStars(kind);
   Fakker.Progress.record("battle", levelId, { stars, score: hits });
+  Fakker.Analytics.logPlay("battle");
   if (kind === "victory") Fakker.Economy.awardCompletion("ساحة الأبطال");
   refreshWallet();
   document.getElementById("end-overlay").hidden = false;

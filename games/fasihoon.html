@@ -424,6 +424,7 @@ function computeStars() {
 function endSession() {
   const stars = computeStars();
   Fakker.Progress.record("fasihoon", levelId, { stars, score: session.correctCount });
+  Fakker.Analytics.logPlay("fasihoon");
   Fakker.Economy.awardCompletion("فصحون");
   refreshWallet();
   Fakker.FX.confetti();
