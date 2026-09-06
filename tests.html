@@ -1,0 +1,174 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>اختبارات فكّر</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;700;900&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="shared/style.css">
+<style>
+  .container { max-width: 720px; }
+  .test-row { display: flex; align-items: flex-start; gap: 10px; padding: 10px 14px; border-radius: 12px; margin-bottom: 6px; font-size: 14px; }
+  .test-row.pass { background: #dcfce7; color: #15803d; }
+  .test-row.fail { background: #fecaca; color: #b91c1c; }
+  .summary { text-align: center; margin: 20px 0; font-size: 20px; font-weight: 900; }
+  code { background: rgba(0,0,0,.06); padding: 1px 6px; border-radius: 6px; font-family: monospace; }
+</style>
+</head>
+<body>
+<div class="topbar">
+  <div class="brand"><span class="logo-emoji">🧠</span> فكّر</div>
+  <div><a href="index.html" class="pill">🏠 الرئيسية</a></div>
+</div>
+<div class="hero" style="text-align:center;padding:20px;">
+  <h1 style="color:var(--accent);">🧪 اختبارات نظام النقاط والمتجر</h1>
+  <p style="margin-top:6px;">اختبارات آلية تشتغل بمتصفحك مباشرة — بدون تأثير على بياناتك الحقيقية</p>
+</div>
+<div class="container">
+  <div class="summary" id="summary">جارِ التشغيل...</div>
+  <div id="results"></div>
+</div>
+
+<script src="shared/progress.js"></script>
+<script src="shared/economy-config.js"></script>
+<script src="shared/economy.js"></script>
+<script>
+// نعزل الاختبارات تماماً عن بيانات الطالب الحقيقية بتبديل مفاتيح localStorage مؤقتاً
+const REAL_KEYS = ["fakker_wallet", "fakker_rewards", "fakker_redemptions", "fakker_economy_overrides", "fakker_profile"];
+const BACKUP = {};
+REAL_KEYS.forEach((k) => { BACKUP[k] = localStorage.getItem(k); localStorage.removeItem(k); });
+localStorage.setItem("fakker_profile", JSON.stringify({ id: "test_student", name: "طالب الاختبار", avatar: "🦊" }));
+
+const results = [];
+function assert(name, condition, detail) {
+  results.push({ name, pass: !!condition, detail: detail || "" });
+}
+
+// 1) احتساب النقاط الأساسية
+Fakker.EconomyConfig.reset();
+const r1 = Fakker.Economy.awardCorrect(1);
+assert("الإجابة الصحيحة العادية = 10 نقاط", r1.points === 10, "الناتج: " + r1.points);
+
+// 2) مضاعف ×1.5 بعد إجابتين متتاليتين
+Fakker.Wallet._save({ balance: 0, lifetime: 0, ledger: [] });
+const r2 = Fakker.Economy.awardCorrect(2);
+assert("مضاعف ×1.5 بعد إجابتين = 15 نقطة", r2.points === 15, "الناتج: " + r2.points);
+
+// 3) مضاعف ×2 بعد ثلاث إجابات متتالية
+const r3 = Fakker.Economy.awardCorrect(3);
+assert("مضاعف ×2 بعد ٣ إجابات = 20 نقطة", r3.points === 20, "الناتج: " + r3.points);
+const r3b = Fakker.Economy.awardCorrect(5);
+assert("المضاعف ×2 يستمر بعد ٥ إجابات", r3b.points === 20, "الناتج: " + r3b.points);
+
+// 4) الإجابة الخاطئة تخصم نقاط ولا تستخدم المضاعف
+Fakker.Wallet._save({ balance: 100, lifetime: 100, ledger: [] });
+const rw = Fakker.Economy.awardWrong();
+assert("الإجابة الخاطئة = -2 نقطة", rw.points === -2, "الناتج: " + rw.points);
+assert("الرصيد بعد الخطأ = 98", Fakker.Wallet.get().balance === 98, "الرصيد: " + Fakker.Wallet.get().balance);
+
+// 5) التلميح يخصم نقطة واحدة
+const rh = Fakker.Economy.spendHint();
+assert("استخدام تلميح = -1 نقطة", rh.points === -1, "الناتج: " + rh.points);
+
+// 6) مكافأة إكمال النشاط لا تتأثر بالمضاعف
+Fakker.Wallet._save({ balance: 0, lifetime: 0, ledger: [] });
+const rc = Fakker.Economy.awardCompletion("اختبار");
+assert("مكافأة إكمال النشاط = 50 نقطة ثابتة", rc.points === 50, "الناتج: " + rc.points);
+
+// 7) الرصيد لا يصبح سالباً أبداً
+Fakker.Wallet._save({ balance: 1, lifetime: 1, ledger: [] });
+Fakker.Wallet.penalize(10, "اختبار خصم كبير");
+assert("الرصيد لا يقل عن صفر", Fakker.Wallet.get().balance === 0, "الرصيد: " + Fakker.Wallet.get().balance);
+
+// 8) الرصيد يبقى بعد إعادة تحميل (محاكاة عبر قراءة تخزين جديدة)
+Fakker.Wallet._save({ balance: 250, lifetime: 250, ledger: [] });
+const reread = JSON.parse(localStorage.getItem("fakker_wallet"));
+assert("الرصيد محفوظ في localStorage بعد الحفظ", reread.balance === 250, "الرصيد المقروء: " + reread.balance);
+
+// 9) منع الشراء عند عدم كفاية الرصيد
+Fakker.Wallet._save({ balance: 50, lifetime: 50, ledger: [] });
+const testReward = { id: "test_reward", name: "مكافأة اختبار", cost: 1000, type: "digital", icon: "🎁", qty: null, active: true, approvalRequired: false };
+Fakker.Rewards.upsert(testReward);
+const buyFail = Fakker.Redemptions.create(testReward, Fakker.Profile.get());
+assert("منع الشراء عند نقص الرصيد", buyFail.ok === false && buyFail.error === "insufficient");
+assert("الرصيد لم يتغيّر بعد الشراء الفاشل", Fakker.Wallet.get().balance === 50);
+
+// 10) نجاح الشراء يخصم النقاط مرة واحدة فقط (منع الخصم المزدوج)
+Fakker.Wallet._save({ balance: 1000, lifetime: 1000, ledger: [] });
+const buyOk = Fakker.Redemptions.create(testReward, Fakker.Profile.get());
+assert("الشراء الناجح يرجع ok=true", buyOk.ok === true);
+assert("الرصيد يُخصم مرة واحدة بالضبط (1000-1000=0)", Fakker.Wallet.get().balance === 0, "الرصيد: " + Fakker.Wallet.get().balance);
+
+// 11) مكافأة رقمية بلا موافقة تُعتمد فوراً
+assert("مكافأة بلا موافقة تصبح approved مباشرة", buyOk.record.status === "approved");
+
+// 12) مكافأة تتطلب موافقة تبقى pending وتُحجز نقاطها
+const approvalReward = { id: "test_reward_approval", name: "مكافأة تحتاج موافقة", cost: 200, type: "real", icon: "🍭", qty: 5, active: true, approvalRequired: true };
+Fakker.Rewards.upsert(approvalReward);
+Fakker.Wallet._save({ balance: 500, lifetime: 500, ledger: [] });
+const reqPending = Fakker.Redemptions.create(approvalReward, Fakker.Profile.get());
+assert("طلب يحتاج موافقة يبقى pending", reqPending.record.status === "pending");
+assert("النقاط تُحجز فوراً (500-200=300)", Fakker.Wallet.get().balance === 300, "الرصيد: " + Fakker.Wallet.get().balance);
+
+// 13) رفض المعلم يعيد النقاط تلقائياً
+Fakker.Redemptions.reject(reqPending.record.id);
+assert("رفض الطلب يرجّع النقاط (300+200=500)", Fakker.Wallet.get().balance === 500, "الرصيد: " + Fakker.Wallet.get().balance);
+assert("حالة الطلب بعد الرفض = rejected", Fakker.Redemptions.list().find(r => r.id === reqPending.record.id).status === "rejected");
+
+// 14) قبول المعلم يغيّر الحالة وينقص المخزون
+const reqPending2 = Fakker.Redemptions.create(approvalReward, Fakker.Profile.get());
+const qtyBefore = Fakker.Rewards.get("test_reward_approval").qty;
+Fakker.Redemptions.approve(reqPending2.record.id);
+assert("قبول الطلب يغيّر الحالة إلى approved", Fakker.Redemptions.list().find(r => r.id === reqPending2.record.id).status === "approved");
+assert("قبول طلب مخزون محدود ينقص الكمية بواحد", Fakker.Rewards.get("test_reward_approval").qty === qtyBefore - 1);
+
+// 15) منع تكرار القبول/الرفض (Idempotent) — لا يُعاد خصم أو إرجاع النقاط مرتين
+const balanceAfterApprove = Fakker.Wallet.get().balance;
+const secondApprove = Fakker.Redemptions.approve(reqPending2.record.id);
+assert("لا يمكن قبول نفس الطلب مرتين", secondApprove === false);
+assert("الرصيد لا يتغيّر عند محاولة قبول مكرر", Fakker.Wallet.get().balance === balanceAfterApprove);
+const secondReject = Fakker.Redemptions.reject(reqPending2.record.id);
+assert("لا يمكن رفض طلب مُعتمد مسبقاً", secondReject === false);
+
+// 16) تصفير الستريك يعيد المضاعف إلى ×1 (محاكاة سلوك الألعاب)
+Fakker.Wallet._save({ balance: 0, lifetime: 0, ledger: [] });
+const afterReset = Fakker.Economy.awardCorrect(1); // كأن streak رجع 1 بعد خطأ
+assert("بعد تصفير الستريك، الإجابة التالية بمضاعف ×1", afterReset.points === 10, "الناتج: " + afterReset.points);
+
+// 17) إعدادات المعلم القابلة للتعديل تُطبَّق فوراً على الحساب
+Fakker.EconomyConfig.setPoints({ correct: 20, wrong: -5, hint: -2, completeBonus: 100 });
+const customPoints = Fakker.Economy.awardCorrect(1);
+assert("تغيير الإعدادات ينعكس فوراً على النقاط (20 بدل 10)", customPoints.points === 20, "الناتج: " + customPoints.points);
+Fakker.EconomyConfig.reset();
+const backToDefault = Fakker.Economy.awardCorrect(1);
+assert("استرجاع الإعدادات الافتراضية يعمل", backToDefault.points === 10, "الناتج: " + backToDefault.points);
+
+// 18) الألعاب القديمة (النجوم) ما زالت تعمل بمعزل عن نظام النقاط الجديد
+Fakker.Progress.record("logic", 1, { stars: 3, score: 6 });
+assert("نظام النجوم القديم لم يتأثر بإضافة نظام النقاط", Fakker.Progress.get("logic", 1).bestStars === 3);
+
+// 19) قائمة الألعاب والمستويات لم تتأثر
+assert("مصفوفة الألعاب الأساسية سليمة (٦ ألعاب محلية على الأقل)", FAKKER_GAMES.filter(g => !g.external).length >= 6);
+assert("مصفوفة المستويات الخمسة سليمة", FAKKER_LEVELS.length === 5);
+
+// ------- استرجاع بيانات المستخدم الحقيقية -------
+REAL_KEYS.forEach((k) => {
+  if (BACKUP[k] === null) localStorage.removeItem(k); else localStorage.setItem(k, BACKUP[k]);
+});
+
+// ------- عرض النتائج -------
+const resultsEl = document.getElementById("results");
+let passCount = 0;
+results.forEach((r) => {
+  if (r.pass) passCount++;
+  const row = document.createElement("div");
+  row.className = "test-row " + (r.pass ? "pass" : "fail");
+  row.innerHTML = `<span>${r.pass ? "✅" : "❌"}</span><span>${r.name}${r.detail ? " — <code>" + r.detail + "</code>" : ""}</span>`;
+  resultsEl.appendChild(row);
+});
+document.getElementById("summary").textContent = `${passCount} / ${results.length} اختبار ناجح`;
+document.getElementById("summary").style.color = passCount === results.length ? "#16a34a" : "#dc2626";
+</script>
+</body>
+</html>

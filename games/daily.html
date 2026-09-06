@@ -1,0 +1,258 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>تحدي اليوم — فكّر</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;700;900&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../shared/style.css">
+<style>
+  :root { --sun-1: #fbbf24; --sun-2: #f59e0b; --sky-1: #38bdf8; --sky-2: #0ea5e9; }
+  @media (prefers-color-scheme: dark) { :root { --sky-1: #0c4a6e; --sky-2: #082f49; } }
+
+  .sky-band {
+    background: linear-gradient(180deg, var(--sky-1), var(--sky-2));
+    padding: 30px 16px 34px;
+    position: relative;
+    overflow: hidden;
+    text-align: center;
+  }
+  .sky-band .sun {
+    width: 84px; height: 84px; border-radius: 50%; margin: 0 auto 10px;
+    background: radial-gradient(circle at 35% 30%, #fff7d6, var(--sun-1) 55%, var(--sun-2));
+    box-shadow: 0 0 40px rgba(251,191,36,.55);
+    display: flex; align-items: center; justify-content: center; font-size: 40px;
+    animation: sun-pulse 3s ease-in-out infinite;
+  }
+  @keyframes sun-pulse { 0%,100% { transform: scale(1); } 50% { transform: scale(1.06); } }
+  .sky-band h1 { color: #fff; font-size: 28px; text-shadow: 0 2px 8px rgba(0,0,0,.15); }
+  .sky-band p { color: rgba(255,255,255,.9); margin-top: 4px; font-weight: 700; }
+  .cloud {
+    position: absolute; background: rgba(255,255,255,.5); border-radius: 999px;
+    filter: blur(1px);
+  }
+
+  .streak-row {
+    display: flex; justify-content: center; gap: 12px; margin: 18px auto 6px; flex-wrap: wrap;
+  }
+  .streak-box {
+    background: var(--card-bg); border-radius: var(--radius-md);
+    box-shadow: 0 6px 16px var(--shadow); padding: 12px 20px; text-align: center; min-width: 110px;
+  }
+  .streak-box .num { font-size: 26px; font-weight: 900; color: var(--accent); }
+  .streak-box .lbl { font-size: 12px; color: var(--text-soft); font-weight: 700; }
+
+  .week-strip { display: flex; justify-content: center; gap: 8px; margin: 18px auto 26px; }
+  .week-day {
+    width: 34px; height: 34px; border-radius: 10px;
+    display: flex; align-items: center; justify-content: center; font-size: 16px;
+    background: var(--accent-soft);
+  }
+  .week-day.done { background: linear-gradient(155deg, #34d976, #16a34a); color: #fff; }
+
+  .question-card { max-width: 520px; margin: 0 auto 24px; text-align: center; padding: 32px 22px; }
+  .question-card .qtext { font-size: 24px; font-weight: 900; line-height: 1.7; }
+
+  .choices { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; max-width: 480px; margin: 0 auto; }
+  .choice-btn {
+    background: var(--card-bg); box-shadow: 0 6px 16px var(--shadow);
+    border-radius: var(--radius-md); padding: 18px 10px;
+    font-size: 18px; font-weight: 800; color: var(--text);
+    transition: transform .1s ease;
+  }
+  .choice-btn:active { transform: scale(0.96); }
+  .choice-btn.correct { background: #bbf7d0; color: #15803d; }
+  .choice-btn.wrong { background: #fecaca; color: #b91c1c; animation: shake .4s; }
+  .choice-btn[disabled] { pointer-events: none; }
+
+  .result-card { max-width: 460px; margin: 0 auto; text-align: center; padding: 34px 24px; }
+  .result-card .big-emoji { font-size: 54px; }
+  .freeze-note {
+    margin-top: 14px; background: var(--accent-soft); color: var(--accent);
+    border-radius: 12px; padding: 10px 14px; font-weight: 700; font-size: 13px;
+  }
+  .ghost-btn { background: var(--accent-soft); color: var(--accent); border-radius: var(--radius-md); padding: 14px; font-weight: 800; display: block; text-align: center; margin-top: 14px; }
+
+  [hidden] { display: none !important; }
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <div class="brand"><span class="logo-emoji">🧠</span> فكّر</div>
+  <div style="display:flex;align-items:center;gap:8px;">
+    <span class="pill" id="wallet-pill">🪙 0</span>
+    <a href="../store.html" class="pill">🎁 المتجر</a>
+    <a href="../index.html" class="pill">🏠 الرئيسية</a>
+  </div>
+</div>
+
+<div class="sky-band">
+  <div class="cloud" style="width:70px;height:24px;top:14px;right:8%;"></div>
+  <div class="cloud" style="width:50px;height:18px;top:40px;left:12%;"></div>
+  <div class="sun">☀️</div>
+  <h1>تحدي اليوم</h1>
+  <p id="date-label"></p>
+</div>
+
+<div class="streak-row">
+  <div class="streak-box"><div class="num" id="streak-num">0</div><div class="lbl">🔥 أيام متتالية</div></div>
+  <div class="streak-box"><div class="num" id="freeze-num">0</div><div class="lbl">🧊 حماية ستريك</div></div>
+</div>
+
+<div class="week-strip" id="week-strip"></div>
+
+<div class="container">
+  <!-- شاشة السؤال -->
+  <div class="card question-card" id="question-screen">
+    <div class="qtext" id="qtext">...</div>
+  </div>
+  <div class="choices" id="choices"></div>
+
+  <!-- شاشة النتيجة (بعد الإجابة أو لو محلول اليوم مسبقاً) -->
+  <div class="card result-card" id="result-screen" hidden>
+    <div class="big-emoji" id="result-emoji">🎉</div>
+    <h2 id="result-title">أحسنت!</h2>
+    <p id="result-desc" style="margin-top:8px;"></p>
+    <div class="freeze-note" id="freeze-note" hidden></div>
+    <a href="../index.html" class="ghost-btn">رجوع للرئيسية 🏠</a>
+  </div>
+</div>
+
+<script src="../shared/firebase-config.js"></script>
+<script src="../shared/progress.js"></script>
+<script src="../shared/economy-config.js"></script>
+<script src="../shared/economy.js"></script>
+<script>
+const profile = Fakker.Profile.get();
+if (!profile) location.href = "../index.html";
+
+Fakker.mountSettingsToggle();
+function refreshWallet() { document.getElementById("wallet-pill").textContent = "🪙 " + Fakker.Wallet.get().balance; }
+refreshWallet();
+
+const DAILY_POOL = [
+  { text: "ما ناتج 12 × 8؟", choices: ["86","96","106","76"], correct: "96" },
+  { text: "أي كوكب يُلقّب بالكوكب الأحمر؟", choices: ["المريخ","الزهرة","زحل","عطارد"], correct: "المريخ" },
+  { text: "كم عدد أضلاع الشكل السداسي؟", choices: ["5","6","7","8"], correct: "6" },
+  { text: "ما مرادف كلمة «سعيد»؟", choices: ["فرحان","حزين","غاضب","خائف"], correct: "فرحان" },
+  { text: "أكمل المتتالية: 3, 6, 12, 24, ؟", choices: ["30","36","48","28"], correct: "48" },
+  { text: "ما عاصمة اليابان؟", choices: ["طوكيو","بكين","سيول","بانكوك"], correct: "طوكيو" },
+  { text: "كم عدد أيام السنة الكبيسة؟", choices: ["364","365","366","367"], correct: "366" },
+  { text: "أي حيوان يُعرف بلقب «ملك الغابة»؟", choices: ["الأسد","الفيل","النمر","الذئب"], correct: "الأسد" },
+  { text: "ما ناتج جمع 15 + 27؟", choices: ["32","42","52","40"], correct: "42" },
+  { text: "أي عنصر كيميائي رمزه Fe؟", choices: ["الحديد","الذهب","الفضة","النحاس"], correct: "الحديد" },
+  { text: "كم عدد قارات العالم؟", choices: ["5","6","7","8"], correct: "7" },
+  { text: "ما ضد كلمة «كبير»؟", choices: ["صغير","طويل","سريع","قوي"], correct: "صغير" },
+  { text: "أي كلمة شاذة لا تنتمي للمجموعة؟", choices: ["قلم","كتاب","مقعد","تفاحة"], correct: "تفاحة" },
+  { text: "ما أطول نهر في العالم؟", choices: ["النيل","الأمازون","الفرات","دجلة"], correct: "النيل" },
+  { text: "أكمل الحروف: أ، ب، ج، ؟", choices: ["ح","د","هـ","و"], correct: "د" },
+  { text: "كم عدد عظام جسم الإنسان البالغ تقريباً؟", choices: ["106","206","306","406"], correct: "206" },
+  { text: "ما ناتج 100 ÷ 4؟", choices: ["20","25","30","15"], correct: "25" },
+  { text: "أي فصل يأتي بعد الشتاء؟", choices: ["الربيع","الصيف","الخريف","الشتاء نفسه"], correct: "الربيع" },
+  { text: "من مخترع المصباح الكهربائي؟", choices: ["توماس إديسون","ألبرت أينشتاين","نيوتن","جراهام بيل"], correct: "توماس إديسون" },
+  { text: "ما ناتج 9 × 9؟", choices: ["72","81","91","99"], correct: "81" },
+  { text: "أي كوكب هو الأقرب إلى الشمس؟", choices: ["عطارد","الزهرة","الأرض","المريخ"], correct: "عطارد" },
+  { text: "كم لتراً في المتر المكعب الواحد؟", choices: ["10","100","1000","10000"], correct: "1000" },
+  { text: "ما جمع كلمة «كتاب»؟", choices: ["كتب","كتابات","كاتبون","كتيبات"], correct: "كتب" },
+  { text: "لو ضاعفت العدد 8 ثم أضفت 5، فما الناتج؟", choices: ["19","21","13","16"], correct: "21" },
+];
+
+function shuffle(arr) { const a = arr.slice(); for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; }
+
+const WEEKDAY_NAMES = ["الأحد","الاثنين","الثلاثاء","الأربعاء","الخميس","الجمعة","السبت"];
+function formatArabicDate(d) {
+  return WEEKDAY_NAMES[d.getDay()] + " — " + d.toLocaleDateString("ar-SA", { day: "numeric", month: "long" });
+}
+document.getElementById("date-label").textContent = formatArabicDate(new Date());
+
+function renderStats() {
+  document.getElementById("streak-num").textContent = Fakker.Daily.getStreak();
+  document.getElementById("freeze-num").textContent = Fakker.Daily.getFreezes();
+  const strip = document.getElementById("week-strip");
+  strip.innerHTML = "";
+  Fakker.Daily.last7Days().forEach((d) => {
+    const el = document.createElement("div");
+    el.className = "week-day" + (d.done ? " done" : "");
+    el.textContent = d.done ? "✓" : "·";
+    strip.appendChild(el);
+  });
+}
+renderStats();
+
+const todayIndex = Fakker.Daily.pickIndex(DAILY_POOL.length);
+const todayQuestion = DAILY_POOL[todayIndex];
+
+function showResult(correct, alreadyDone) {
+  document.getElementById("question-screen").hidden = true;
+  document.getElementById("choices").hidden = true;
+  document.getElementById("result-screen").hidden = false;
+
+  if (alreadyDone) {
+    document.getElementById("result-emoji").textContent = "🌙";
+    document.getElementById("result-title").textContent = "حلّيت تحدي اليوم من قبل!";
+    document.getElementById("result-desc").textContent = "تعال بكرة عشان تكمل السلسلة 🔥 " + Fakker.Daily.getStreak() + " يوم";
+    return;
+  }
+
+  const before = Fakker.Daily.getStreak();
+  const freezesBefore = Fakker.Daily.getFreezes();
+  const state = Fakker.Daily.complete(correct);
+  renderStats();
+
+  let pointsResult;
+  if (correct) {
+    pointsResult = Fakker.Economy.awardCorrect(1);
+    Fakker.Economy.awardCompletion("تحدي اليوم");
+  } else {
+    pointsResult = Fakker.Economy.awardWrong();
+  }
+  refreshWallet();
+
+  if (correct) {
+    Fakker.FX.confetti();
+    Fakker.FX.win();
+    document.getElementById("result-emoji").textContent = "🎉";
+    document.getElementById("result-title").textContent = Fakker.FX.randomPraise();
+  } else {
+    Fakker.FX.wrong();
+    document.getElementById("result-emoji").textContent = "💪";
+    document.getElementById("result-title").textContent = Fakker.FX.randomEncourage();
+  }
+  const ptsTxt = (pointsResult.points > 0 ? "+" : "") + pointsResult.points + " نقطة 🪙 — ";
+  document.getElementById("result-desc").textContent =
+    ptsTxt + "سلسلتك الآن: " + state.streak + " يوم متتالي 🔥 — تعال بكرة تكمل!";
+
+  if (state.freezes > freezesBefore) {
+    const note = document.getElementById("freeze-note");
+    note.hidden = false;
+    note.textContent = "🎁 حصلت على حماية ستريك جديدة لإكمال أسبوع كامل!";
+  } else if (before === 0 && state.streak === 1 && freezesBefore > 0 && state.streak < before) {
+    // لا شيء إضافي
+  }
+}
+
+if (Fakker.Daily.isCompletedToday()) {
+  showResult(null, true);
+} else {
+  document.getElementById("qtext").textContent = todayQuestion.text;
+  const choicesEl = document.getElementById("choices");
+  shuffle(todayQuestion.choices).forEach((c) => {
+    const b = document.createElement("div");
+    b.className = "choice-btn";
+    b.textContent = c;
+    b.onclick = () => {
+      const buttons = document.querySelectorAll(".choice-btn");
+      buttons.forEach((x) => x.setAttribute("disabled", "true"));
+      const isCorrect = c === todayQuestion.correct;
+      buttons.forEach((x) => { if (x.textContent === todayQuestion.correct) x.classList.add("correct"); });
+      if (!isCorrect) b.classList.add("wrong");
+      setTimeout(() => showResult(isCorrect, false), 700);
+    };
+    choicesEl.appendChild(b);
+  });
+}
+</script>
+</body>
+</html>

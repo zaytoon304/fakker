@@ -1,0 +1,369 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ساحة الأبطال — فكّر</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;700;900&family=Reem+Kufi:wght@400;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../shared/style.css">
+<style>
+  :root { --arena-1: #1e1b4b; --arena-2: #4c1d95; --arena-glow: #f472b6; }
+
+  .arena {
+    background: linear-gradient(180deg, var(--arena-1) 0%, var(--arena-2) 65%, #7c3aed 100%);
+    position: relative; overflow: hidden;
+    padding: 22px 16px 34px;
+  }
+  .arena .star { position: absolute; background: #fff; border-radius: 50%; opacity: .8; animation: twinkle 2.4s ease-in-out infinite; }
+  @keyframes twinkle { 0%,100% { opacity: .25; } 50% { opacity: .9; } }
+
+  .arena-title { text-align: center; position: relative; z-index: 1; }
+  .arena-title h1 { font-family: 'Reem Kufi','Tajawal',sans-serif; color: #fff; font-size: 26px; text-shadow: 0 2px 10px rgba(0,0,0,.4); }
+  .arena-title p { color: rgba(255,255,255,.75); margin-top: 4px; font-weight: 700; font-size: 13px; }
+
+  .fighters {
+    display: flex; align-items: flex-end; justify-content: space-between;
+    max-width: 640px; margin: 24px auto 0; position: relative; z-index: 1; gap: 10px;
+  }
+  .fighter { text-align: center; flex: 1; }
+  .fighter-avatar {
+    font-size: 56px; width: 96px; height: 96px; margin: 0 auto 10px;
+    background: radial-gradient(circle at 35% 30%, rgba(255,255,255,.35), rgba(255,255,255,.05));
+    border-radius: 50%; display: flex; align-items: center; justify-content: center;
+    box-shadow: 0 8px 24px rgba(0,0,0,.35);
+    animation: float-idle 2.6s ease-in-out infinite;
+    transition: transform .15s ease;
+  }
+  @keyframes float-idle { 0%,100% { transform: translateY(0); } 50% { transform: translateY(-8px); } }
+  .fighter-avatar.hit { animation: hit-shake .45s ease; }
+  @keyframes hit-shake {
+    0%,100% { transform: translateX(0) scale(1); filter: none; }
+    20% { transform: translateX(-10px) scale(1.05); filter: brightness(1.6) saturate(1.6); }
+    40% { transform: translateX(10px) scale(0.96); }
+    60% { transform: translateX(-6px); }
+    80% { transform: translateX(6px); }
+  }
+  .fighter-name { color: #fff; font-weight: 800; font-size: 14px; margin-bottom: 6px; }
+  .hp-bar { display: flex; gap: 4px; justify-content: center; margin-top: 4px; }
+  .hp-pip { width: 16px; height: 10px; border-radius: 4px; background: rgba(255,255,255,.18); }
+  .hp-pip.filled.monster { background: linear-gradient(90deg,#f43f5e,#fb7185); }
+  .hearts { font-size: 16px; letter-spacing: 3px; margin-top: 4px; }
+  .vs-badge {
+    font-family: 'Reem Kufi','Tajawal',sans-serif; color: var(--arena-glow);
+    font-size: 22px; padding-bottom: 30px; text-shadow: 0 0 12px rgba(244,114,182,.7);
+  }
+
+  .floating-text {
+    position: absolute; font-weight: 900; font-size: 20px; color: #fff;
+    pointer-events: none; animation: float-up-fade 1s ease forwards; z-index: 5;
+    text-shadow: 0 2px 6px rgba(0,0,0,.4);
+  }
+  @keyframes float-up-fade { 0% { opacity: 1; transform: translateY(0); } 100% { opacity: 0; transform: translateY(-50px); } }
+
+  .question-card { max-width: 560px; margin: 24px auto; text-align: center; padding: 28px 22px; }
+  .question-card .qtext { font-size: 22px; font-weight: 900; line-height: 1.6; }
+
+  .choices { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; max-width: 540px; margin: 0 auto; }
+  .choice-btn {
+    background: var(--card-bg); box-shadow: 0 6px 16px var(--shadow);
+    border-radius: var(--radius-md); padding: 18px 10px;
+    font-size: 18px; font-weight: 800; color: var(--text);
+    transition: transform .1s ease;
+  }
+  .choice-btn:active { transform: scale(0.96); }
+  .choice-btn.correct { background: #bbf7d0; color: #15803d; }
+  .choice-btn.wrong { background: #fecaca; color: #b91c1c; animation: shake .4s; }
+  .choice-btn[disabled] { pointer-events: none; }
+
+  #end-overlay {
+    position: fixed; inset: 0; background: rgba(20,14,40,0.65);
+    display: flex; align-items: center; justify-content: center; z-index: 500;
+  }
+  #end-overlay .card { max-width: 400px; text-align: center; animation: pop-in .4s ease; }
+  #end-overlay .big-emoji { font-size: 56px; }
+  #end-overlay .stars-big { font-size: 40px; letter-spacing: 8px; color: #d4a017; margin: 10px 0; }
+  #end-overlay .actions { display: flex; gap: 10px; margin-top: 18px; }
+  #end-overlay .actions button { flex: 1; }
+  .ghost-btn { background: var(--accent-soft); color: var(--accent); border-radius: var(--radius-md); padding: 14px; font-weight: 800; }
+
+  [hidden] { display: none !important; }
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <div class="brand"><span class="logo-emoji">🧠</span> فكّر</div>
+  <div style="display:flex;align-items:center;gap:8px;">
+    <span class="pill" id="wallet-pill">🪙 0</span>
+    <a href="../store.html" class="pill">🎁 المتجر</a>
+    <a href="../index.html" class="pill">🏠 الرئيسية</a>
+  </div>
+</div>
+
+<div class="arena" id="arena">
+  <div class="arena-title">
+    <h1>⚔️ ساحة الأبطال</h1>
+    <p id="arena-subtitle">جاوب صح لتضرب الوحش!</p>
+  </div>
+
+  <div class="fighters">
+    <div class="fighter" id="hero-fighter">
+      <div class="fighter-avatar" id="hero-avatar">🦊</div>
+      <div class="fighter-name" id="hero-name">البطل</div>
+      <div class="hearts" id="hero-hearts">❤️❤️❤️</div>
+    </div>
+    <div class="vs-badge">VS</div>
+    <div class="fighter" id="monster-fighter">
+      <div class="fighter-avatar" id="monster-avatar">👹</div>
+      <div class="fighter-name" id="monster-name">الوحش</div>
+      <div class="hp-bar" id="monster-hp"></div>
+    </div>
+  </div>
+</div>
+
+<div class="container">
+  <div class="card question-card">
+    <div class="qtext" id="qtext">...</div>
+  </div>
+  <div class="choices" id="choices"></div>
+</div>
+
+<div id="end-overlay" hidden>
+  <div class="card">
+    <div class="big-emoji" id="end-emoji">🏆</div>
+    <h2 id="end-title">انتصرت!</h2>
+    <div class="stars-big" id="end-stars">★★★</div>
+    <p id="end-desc"></p>
+    <div class="actions">
+      <button class="ghost-btn" id="btn-replay">🔁 معركة جديدة</button>
+      <button class="big-btn" id="btn-back">الألعاب 🏠</button>
+    </div>
+  </div>
+</div>
+
+<script src="../shared/firebase-config.js"></script>
+<script src="../shared/progress.js"></script>
+<script src="../shared/economy-config.js"></script>
+<script src="../shared/economy.js"></script>
+<script>
+const profile = Fakker.Profile.get();
+if (!profile) location.href = "../index.html";
+
+Fakker.mountSettingsToggle();
+function refreshWallet() { document.getElementById("wallet-pill").textContent = "🪙 " + Fakker.Wallet.get().balance; }
+refreshWallet();
+
+const params = new URLSearchParams(location.search);
+const levelId = parseInt(params.get("level")) || 1;
+
+function q(text, choices, correct) { return { text, choices, correct }; }
+
+const MONSTERS = {
+  1: { name: "التنين الصغير الخجول", emoji: "🐲", hp: 3,
+    pool: [
+      q("كم عدد أصابع يدك الواحدة؟", ["4","5","6","10"], "5"),
+      q("ما لون السماء صباحاً؟", ["أزرق","أحمر","أسود","أخضر"], "أزرق"),
+      q("كم عدد أرجل القطة؟", ["2","4","6","8"], "4"),
+      q("أي حيوان يعطينا الحليب؟", ["البقرة","الأسد","النمر","الذئب"], "البقرة"),
+      q("ما ناتج 2 + 2؟", ["3","4","5","6"], "4"),
+      q("أي فاكهة صفراء ومنحنية؟", ["الموز","التفاح","العنب","البرتقال"], "الموز"),
+      q("كم عدد أيام الأسبوع؟", ["5","6","7","8"], "7"),
+      q("أي حرف يأتي بعد أ؟", ["ب","ت","ث","ج"], "ب"),
+      q("ما صوت القطة؟", ["مواء","نباح","زئير","صهيل"], "مواء"),
+      q("كم عدد عيون الإنسان؟", ["1","2","3","4"], "2"),
+    ] },
+  2: { name: "غول المكتبة الضائع", emoji: "👹", hp: 4,
+    pool: [
+      q("ما ناتج 7 + 8؟", ["13","14","15","16"], "15"),
+      q("كم عدد شهور السنة؟", ["10","11","12","13"], "12"),
+      q("ما عاصمة السعودية؟", ["الرياض","جدة","مكة","الدمام"], "الرياض"),
+      q("ما جمع كلمة «ولد»؟", ["أولاد","ولدان","ولديين","أولياء"], "أولاد"),
+      q("أي حاسة نستخدمها للسمع؟", ["الأذن","العين","الأنف","اللسان"], "الأذن"),
+      q("ما ناتج 9 × 3؟", ["24","27","29","21"], "27"),
+      q("كم عدد فصول السنة؟", ["2","3","4","5"], "4"),
+      q("ما ضد كلمة «فوق»؟", ["تحت","يمين","يسار","أمام"], "تحت"),
+      q("أي كوكب نعيش عليه؟", ["الأرض","المريخ","زحل","المشتري"], "الأرض"),
+      q("ما ناتج 20 - 6؟", ["12","13","14","16"], "14"),
+    ] },
+  3: { name: "أخطبوط الألغاز", emoji: "🐙", hp: 5,
+    pool: [
+      q("كم عدد قارات العالم؟", ["5","6","7","8"], "7"),
+      q("ما ناتج 12 × 6؟", ["62","68","72","82"], "72"),
+      q("أي عضو يضخ الدم بالجسم؟", ["القلب","الكبد","الرئة","المعدة"], "القلب"),
+      q("ما ناتج 144 ÷ 12؟", ["10","11","12","14"], "12"),
+      q("كم عدد عظام جسم الإنسان تقريباً؟", ["106","206","306","406"], "206"),
+      q("ما أكبر محيط في العالم؟", ["الهادئ","الأطلسي","الهندي","المتجمد"], "الهادئ"),
+      q("أي غاز نستنشقه للحياة؟", ["الأكسجين","ثاني أكسيد الكربون","النيتروجين","الهيدروجين"], "الأكسجين"),
+      q("ما ناتج 8²؟", ["56","64","72","81"], "64"),
+      q("كم عدد أضلاع المثمّن؟", ["6","7","8","9"], "8"),
+      q("من مخترع الهاتف؟", ["جراهام بيل","إديسون","نيوتن","أينشتاين"], "جراهام بيل"),
+    ] },
+  4: { name: "حارس التماثيل القديم", emoji: "🗿", hp: 5,
+    pool: [
+      q("ما ناتج 15% من 200؟", ["20","25","30","35"], "30"),
+      q("ما الناتج: (3+5) × 2؟", ["13","16","20","22"], "16"),
+      q("أي دولة بها برج إيفل؟", ["فرنسا","ألمانيا","إيطاليا","إسبانيا"], "فرنسا"),
+      q("ما مفرد كلمة «طلاب»؟", ["طالب","طلب","طلبة","مطلوب"], "طالب"),
+      q("كم عدد لاعبي فريق كرة القدم بالملعب؟", ["9","10","11","12"], "11"),
+      q("ما ناتج جذر 121؟", ["9","10","11","12"], "11"),
+      q("أي علم يدرس النجوم؟", ["الفلك","الأحياء","الكيمياء","الجيولوجيا"], "الفلك"),
+      q("ما ضد كلمة «الكرم»؟", ["البخل","الشجاعة","الصدق","الأمانة"], "البخل"),
+      q("لو ثلث عدد يساوي 9، فما العدد؟", ["18","24","27","30"], "27"),
+      q("ما ناتج 6 × 7 - 10؟", ["30","32","34","42"], "32"),
+    ] },
+  5: { name: "تنين الحكمة العظيم", emoji: "🐉", hp: 6,
+    pool: [
+      q("ما ناتج 7 × 13؟", ["81","91","93","101"], "91"),
+      q("أي عنصر كيميائي رمزه Au؟", ["الذهب","الفضة","الحديد","النحاس"], "الذهب"),
+      q("لو س + 5 = 12، فما قيمة 2س؟", ["10","12","14","17"], "14"),
+      q("من كاتب مسرحية «هاملت»؟", ["شكسبير","تولستوي","ديكنز","همنغواي"], "شكسبير"),
+      q("ما ناتج الجذر التكعيبي لـ 27؟", ["2","3","4","9"], "3"),
+      q("أي خليفة راشد اشتهر بالعدل؟", ["عمر بن الخطاب","معاوية","يزيد","هارون الرشيد"], "عمر بن الخطاب"),
+      q("ما ناتج 2⁵؟", ["16","32","64","25"], "32"),
+      q("ما عاصمة أستراليا؟", ["كانبيرا","سيدني","ملبورن","بيرث"], "كانبيرا"),
+      q("سرعة الضوء تقريباً 300000 كم/ث، كم يقطع بـ 2 ثانية؟", ["150000","300000","450000","600000"], "600000"),
+      q("ما ناتج 9 × 9 - 5؟", ["76","78","81","86"], "76"),
+    ] },
+};
+
+const monster = MONSTERS[levelId] || MONSTERS[1];
+let monsterHP = monster.hp, heroHearts = 3, queue = [], qIndex = 0, hits = 0, battleStreak = 0;
+
+document.getElementById("monster-name").textContent = monster.name;
+document.getElementById("monster-avatar").textContent = monster.emoji;
+document.getElementById("hero-avatar").textContent = profile.avatar;
+document.getElementById("hero-name").textContent = profile.name;
+
+function shuffle(arr) { const a = arr.slice(); for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; }
+
+function renderHP() {
+  const bar = document.getElementById("monster-hp");
+  bar.innerHTML = "";
+  for (let i = 0; i < monster.hp; i++) {
+    const pip = document.createElement("div");
+    pip.className = "hp-pip" + (i < monsterHP ? " filled monster" : "");
+    bar.appendChild(pip);
+  }
+  document.getElementById("hero-hearts").textContent = "❤️".repeat(heroHearts) + "🖤".repeat(3 - heroHearts);
+}
+
+function floatText(targetId, text, color) {
+  const target = document.getElementById(targetId);
+  const rect = target.getBoundingClientRect();
+  const el = document.createElement("div");
+  el.className = "floating-text";
+  el.textContent = text;
+  el.style.color = color || "#fff";
+  el.style.left = (rect.left + rect.width / 2 - 20) + "px";
+  el.style.top = (rect.top + window.scrollY - 10) + "px";
+  document.body.appendChild(el);
+  setTimeout(() => el.remove(), 1000);
+}
+
+function startBattle() {
+  monsterHP = monster.hp; heroHearts = 3; qIndex = 0; hits = 0; battleStreak = 0;
+  queue = shuffle(monster.pool);
+  renderHP();
+  document.getElementById("end-overlay").hidden = true;
+  nextQuestion();
+}
+
+function nextQuestion() {
+  if (qIndex >= queue.length) return endBattle("escape");
+  const current = queue[qIndex++];
+  document.getElementById("qtext").textContent = current.text;
+  const choicesEl = document.getElementById("choices");
+  choicesEl.innerHTML = "";
+  shuffle(current.choices).forEach((c) => {
+    const b = document.createElement("div");
+    b.className = "choice-btn";
+    b.textContent = c;
+    b.onclick = () => answer(c === current.correct, current.correct, b);
+    choicesEl.appendChild(b);
+  });
+}
+
+function answer(isCorrect, correctText, btnEl) {
+  const buttons = document.querySelectorAll(".choice-btn");
+  buttons.forEach((b) => b.setAttribute("disabled", "true"));
+  buttons.forEach((b) => { if (b.textContent === correctText) b.classList.add("correct"); });
+  if (!isCorrect) btnEl.classList.add("wrong");
+
+  if (isCorrect) {
+    hits++; battleStreak++;
+    monsterHP = Math.max(0, monsterHP - 1);
+    document.getElementById("monster-avatar").classList.add("hit");
+    const result = Fakker.Economy.awardCorrect(battleStreak);
+    floatText("monster-avatar", "⚔️ +" + result.points, "#fca5a5");
+    Fakker.FX.success();
+  } else {
+    battleStreak = 0;
+    heroHearts = Math.max(0, heroHearts - 1);
+    document.getElementById("hero-avatar").classList.add("hit");
+    const result = Fakker.Economy.awardWrong();
+    floatText("hero-avatar", "🛡️ " + result.points, "#93c5fd");
+    Fakker.FX.wrong();
+  }
+  refreshWallet();
+  setTimeout(() => {
+    document.getElementById("monster-avatar").classList.remove("hit");
+    document.getElementById("hero-avatar").classList.remove("hit");
+    renderHP();
+    if (monsterHP <= 0) return endBattle("victory");
+    if (heroHearts <= 0) return endBattle("defeat");
+    nextQuestion();
+  }, 550);
+}
+
+function computeStars(kind) {
+  if (kind === "victory") return heroHearts >= 2 ? 3 : heroHearts === 1 ? 2 : 1;
+  return hits > 0 ? 1 : 1; // مشاركة إيجابية دايماً ولو ما انتصر
+}
+
+function endBattle(kind) {
+  const stars = computeStars(kind);
+  Fakker.Progress.record("battle", levelId, { stars, score: hits });
+  if (kind === "victory") Fakker.Economy.awardCompletion("ساحة الأبطال");
+  refreshWallet();
+  document.getElementById("end-overlay").hidden = false;
+  document.getElementById("end-stars").textContent = "★".repeat(stars) + "☆".repeat(3 - stars);
+
+  if (kind === "victory") {
+    Fakker.FX.confetti(); Fakker.FX.win();
+    document.getElementById("end-emoji").textContent = "🏆";
+    document.getElementById("end-title").textContent = "هزمت " + monster.name + "!";
+    document.getElementById("end-desc").textContent = "بقي معك " + heroHearts + " من القلوب — بطولة حقيقية!";
+  } else if (kind === "defeat") {
+    document.getElementById("end-emoji").textContent = "🌙";
+    document.getElementById("end-title").textContent = "الوحش قوي هالمرة!";
+    document.getElementById("end-desc").textContent = "أضعفته " + hits + " ضربة من " + monster.hp + " — جهّز حيلك وارجع تحدّاه!";
+  } else {
+    document.getElementById("end-emoji").textContent = "💨";
+    document.getElementById("end-title").textContent = "الوحش هرب واختبأ!";
+    document.getElementById("end-desc").textContent = "أضعفته " + hits + " ضربة — قريب تمسكه، حاول مرة ثانية!";
+  }
+}
+
+document.getElementById("btn-replay").onclick = startBattle;
+document.getElementById("btn-back").onclick = () => { location.href = "../index.html"; };
+
+// نجوم متلألئة بالخلفية
+(function stars() {
+  const arena = document.getElementById("arena");
+  for (let i = 0; i < 22; i++) {
+    const s = document.createElement("div");
+    s.className = "star";
+    const size = 1 + Math.random() * 2;
+    s.style.width = size + "px"; s.style.height = size + "px";
+    s.style.left = Math.random() * 100 + "%";
+    s.style.top = Math.random() * 60 + "%";
+    s.style.animationDelay = (Math.random() * 2) + "s";
+    arena.appendChild(s);
+  }
+})();
+
+startBattle();
+</script>
+</body>
+</html>

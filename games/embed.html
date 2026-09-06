@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>لعبة — فكّر</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;700;900&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../shared/style.css">
+<style>
+  html, body { height: 100%; }
+  .embed-header {
+    display: flex; align-items: center; justify-content: space-between;
+    gap: 12px; padding: 10px 16px; flex-wrap: wrap;
+  }
+  .embed-title { display: flex; align-items: center; gap: 10px; }
+  .embed-title .emoji { font-size: 26px; }
+  .embed-title h1 { font-size: 18px; }
+  .embed-title p { font-size: 12px; }
+  .source-tag {
+    font-size: 12px; background: var(--accent-soft); color: var(--accent);
+    border-radius: 999px; padding: 4px 12px; font-weight: 700;
+  }
+  .frame-wrap { flex: 1; padding: 0 12px 12px; }
+  iframe {
+    width: 100%; height: 100%; min-height: 70vh;
+    border: none; border-radius: var(--radius-md);
+    box-shadow: 0 8px 22px var(--shadow);
+    background: #fff;
+  }
+  body { display: flex; flex-direction: column; }
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <div class="brand"><span class="logo-emoji">🧠</span> فكّر</div>
+  <div><a href="../index.html" class="pill">🏠 الرئيسية</a></div>
+</div>
+
+<div class="embed-header">
+  <div class="embed-title">
+    <span class="emoji" id="e-emoji">🎮</span>
+    <div>
+      <h1 id="e-title">لعبة</h1>
+      <p id="e-subtitle"></p>
+    </div>
+  </div>
+  <div style="display:flex; align-items:center; gap:8px;">
+    <span class="source-tag">🌐 من مدارس الأرقم</span>
+    <a class="pill" id="e-openTab" target="_blank" rel="noopener">فتح بنافذة جديدة ↗</a>
+  </div>
+</div>
+
+<div class="frame-wrap">
+  <iframe id="e-frame" allow="fullscreen" title="لعبة خارجية"></iframe>
+</div>
+
+<script>
+  const params = new URLSearchParams(location.search);
+  const src = params.get("src") || "";
+  document.getElementById("e-emoji").textContent = params.get("emoji") || "🎮";
+  document.getElementById("e-title").textContent = params.get("title") || "لعبة";
+  document.getElementById("e-subtitle").textContent = params.get("subtitle") || "";
+  document.getElementById("e-frame").src = src;
+  document.getElementById("e-openTab").href = src;
+</script>
+</body>
+</html>

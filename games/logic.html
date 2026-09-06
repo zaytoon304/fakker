@@ -1,0 +1,321 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ألغاز التفكير — فكّر</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;700;900&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../shared/style.css">
+<style>
+  .game-header { text-align: center; padding: 18px 16px 4px; }
+  .game-header .theme-emoji { font-size: 40px; }
+  .game-header h1 { font-size: 26px; margin-top: 4px; }
+  .game-header p { margin-top: 4px; }
+
+  .hud { display: flex; justify-content: center; gap: 12px; margin: 14px 0 10px; flex-wrap: wrap; }
+  .streak-pill.hot { transform: scale(1.15); color: #ea580c; }
+  .powerup-btn { cursor: pointer; color: var(--accent); transition: transform .12s ease; }
+  .powerup-btn:active { transform: scale(0.92); }
+  .powerup-btn.disabled { opacity: .4; pointer-events: none; }
+  .choice-btn.eliminated { opacity: .25; pointer-events: none; }
+
+  .timer-track { max-width: 420px; margin: 0 auto 22px; height: 10px; background: var(--accent-soft); border-radius: 999px; overflow: hidden; }
+  .timer-fill { height: 100%; background: var(--accent); width: 100%; transition: width .1s linear; border-radius: 999px; }
+  .timer-fill.danger { background: #ef4444; }
+
+  .question-card { max-width: 560px; margin: 0 auto 24px; text-align: center; padding: 30px 22px; }
+  .question-card .qtext { font-size: 28px; font-weight: 900; line-height: 1.5; }
+  .question-card .qcounter { margin-top: 10px; font-size: 14px; }
+
+  .choices { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; max-width: 520px; margin: 0 auto; }
+  .choice-btn {
+    background: var(--card-bg); box-shadow: 0 6px 16px var(--shadow);
+    border-radius: var(--radius-md); padding: 20px 10px;
+    font-size: 22px; font-weight: 800; color: var(--text);
+    transition: transform .1s ease;
+  }
+  .choice-btn:active { transform: scale(0.96); }
+  .choice-btn.correct { background: #bbf7d0; color: #15803d; }
+  .choice-btn.wrong { background: #fecaca; color: #b91c1c; animation: shake .4s; }
+  .choice-btn[disabled] { pointer-events: none; }
+
+  #win-overlay { position: fixed; inset: 0; background: rgba(20,14,40,0.55); display: flex; align-items: center; justify-content: center; z-index: 500; }
+  #win-overlay .card { max-width: 380px; text-align: center; animation: pop-in .4s ease; }
+  #win-overlay .stars-big { font-size: 44px; letter-spacing: 8px; color: #d4a017; margin: 10px 0; }
+  #win-overlay .actions { display: flex; gap: 10px; margin-top: 18px; }
+  #win-overlay .actions button { flex: 1; }
+  .ghost-btn { background: var(--accent-soft); color: var(--accent); border-radius: var(--radius-md); padding: 14px; font-weight: 800; }
+
+  [hidden] { display: none !important; }
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <div class="brand"><span class="logo-emoji">🧠</span> فكّر</div>
+  <div style="display:flex;align-items:center;gap:8px;">
+    <span class="pill" id="wallet-pill">🪙 0</span>
+    <a href="../store.html" class="pill">🎁 المتجر</a>
+    <a href="../index.html" class="pill">🏠 الرئيسية</a>
+  </div>
+</div>
+
+<div class="game-header">
+  <div class="theme-emoji" id="theme-emoji">🧩</div>
+  <h1 id="theme-title">ألغاز التفكير</h1>
+  <p id="theme-subtitle"></p>
+</div>
+
+<div class="hud">
+  <span class="pill">✅ <span id="score-count">0</span></span>
+  <span class="pill streak-pill" id="streak-pill">🔥 0</span>
+  <span class="pill powerup-btn" id="powerup-5050">🎯 50:50 (<span id="powerup-count">2</span>)</span>
+</div>
+
+<div class="timer-track"><div class="timer-fill" id="timer-fill"></div></div>
+
+<div class="container">
+  <div class="card question-card">
+    <div class="qtext" id="qtext">...</div>
+    <div class="qcounter" id="qcounter"></div>
+  </div>
+  <div class="choices" id="choices"></div>
+</div>
+
+<div id="win-overlay" hidden>
+  <div class="card">
+    <h2 id="win-title">أحسنت!</h2>
+    <div class="stars-big" id="win-stars">★★★</div>
+    <p id="win-desc"></p>
+    <div class="actions">
+      <button class="ghost-btn" id="btn-replay">🔁 جولة جديدة</button>
+      <button class="big-btn" id="btn-back">الألعاب 🏠</button>
+    </div>
+  </div>
+</div>
+
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-database-compat.js"></script>
+<script src="../shared/firebase-config.js"></script>
+<script src="../shared/progress.js"></script>
+<script src="../shared/economy-config.js"></script>
+<script src="../shared/economy.js"></script>
+<script>
+const profile = Fakker.Profile.get();
+if (!profile) location.href = "../index.html";
+
+Fakker.mountSettingsToggle();
+function refreshWallet() { document.getElementById("wallet-pill").textContent = "🪙 " + Fakker.Wallet.get().balance; }
+refreshWallet();
+
+const params = new URLSearchParams(location.search);
+const levelId = parseInt(params.get("level")) || 1;
+const TOTAL_QUESTIONS = 6;
+const TIME_PER_Q = 20;
+
+function q(text, choices, correct) { return { text, choices, correct }; }
+
+const POOLS = {
+  1: [ // أول ابتدائي: إكمال الأنماط البصرية
+    q("🔴🔵🔴🔵❓", ["🔴","🔵","🟢","🟡"], "🔴"),
+    q("⭐️⭐️🌙⭐️⭐️🌙❓", ["⭐️","🌙","☀️","✨"], "⭐️"),
+    q("🐱🐶🐱🐶🐱❓", ["🐶","🐱","🐰","🐻"], "🐶"),
+    q("1️⃣2️⃣1️⃣2️⃣❓", ["1️⃣","2️⃣","3️⃣","4️⃣"], "1️⃣"),
+    q("🟢🟢🔴🟢🟢🔴❓", ["🟢","🔴","🔵","🟡"], "🟢"),
+    q("🍎🍎🍌🍎🍎🍌❓", ["🍎","🍌","🍇","🍊"], "🍎"),
+    q("⬆️⬇️⬆️⬇️❓", ["⬆️","⬇️","➡️","⬅️"], "⬆️"),
+    q("🔺🔻🔺🔻🔺❓", ["🔻","🔺","⬛","⚪"], "🔻"),
+    q("🥚🐣🐤❓", ["🐔","🥚","🐣","🦆"], "🐔"),
+    q("🟦🟦🟨🟦🟦🟨❓", ["🟦","🟨","🟥","🟩"], "🟦"),
+  ],
+  2: [ // ثاني وثالث: التصنيف والاستبعاد
+    q("أي واحد مختلف عن البقية؟", ["🍎","🍌","🍇","🚗"], "🚗"),
+    q("أي واحد مختلف عن البقية؟", ["🐶","🐱","🐰","🪑"], "🪑"),
+    q("أي رقم مختلف عن البقية؟", ["2","4","7","8"], "7"),
+    q("أي واحد مختلف عن البقية؟", ["⚽","🏀","🎾","📚"], "📚"),
+    q("أي واحد مختلف عن البقية؟", ["🚗","🚌","🚲","🍕"], "🍕"),
+    q("أي واحد مختلف عن البقية؟", ["🔴","🔵","🟢","🍋"], "🍋"),
+    q("أي واحد مختلف عن البقية؟", ["👦","👧","👨","🐘"], "🐘"),
+    q("أي رقم مختلف عن البقية؟", ["1","3","5","6"], "6"),
+    q("أي واحد مختلف عن البقية؟", ["🌹","🌷","🌻","🥕"], "🥕"),
+    q("أي واحد مختلف عن البقية؟", ["✏️","🖊️","📏","🍦"], "🍦"),
+  ],
+  3: [ // رابع-خامس-سادس: متتاليات عددية
+    q("2, 4, 6, 8, ؟", ["9","10","11","12"], "10"),
+    q("5, 10, 15, 20, ؟", ["22","24","25","30"], "25"),
+    q("1, 4, 9, 16, ؟", ["20","24","25","36"], "25"),
+    q("3, 6, 9, 12, ؟", ["14","15","16","18"], "15"),
+    q("1, 2, 4, 8, ؟", ["10","12","16","32"], "16"),
+    q("100, 90, 80, 70, ؟", ["50","60","65","75"], "60"),
+    q("1, 1, 2, 3, 5, ؟", ["6","7","8","13"], "8"),
+    q("10, 20, 30, ؟, 50", ["35","40","45","60"], "40"),
+    q("2, 6, 18, 54, ؟", ["108","162","144","81"], "162"),
+    q("1, 3, 6, 10, ؟", ["12","14","15","16"], "15"),
+  ],
+  4: [ // متوسط: التناظر اللفظي
+    q("قلم : كتابة  ::  مقص : ؟", ["قص","أكل","نوم","لعب"], "قص"),
+    q("شمس : نهار  ::  قمر : ؟", ["ليل","صباح","ظهر","عصر"], "ليل"),
+    q("طبيب : مستشفى  ::  معلم : ؟", ["مدرسة","مطعم","مزرعة","مصنع"], "مدرسة"),
+    q("سمكة : ماء  ::  طائر : ؟", ["هواء","نار","أرض","ثلج"], "هواء"),
+    q("يد : أصابع  ::  قدم : ؟", ["أصابع","عيون","أذن","شعر"], "أصابع"),
+    q("نحلة : عسل  ::  بقرة : ؟", ["حليب","بيض","صوف","لحم"], "حليب"),
+    q("كتاب : قراءة  ::  طعام : ؟", ["أكل","شرب","نوم","لعب"], "أكل"),
+    q("مفتاح : باب  ::  كلمة سر : ؟", ["حاسوب","كرسي","طاولة","نافذة"], "حاسوب"),
+    q("بذرة : شجرة  ::  طفل : ؟", ["رجل","حيوان","طائر","سيارة"], "رجل"),
+    q("ثلج : بارد  ::  نار : ؟", ["حار","أزرق","هادئ","ثقيل"], "حار"),
+  ],
+  5: [ // ثانوي: استنتاج منطقي
+    q("ثلاثة إخوة: أحمد أطول من سالم، وسالم أطول من خالد. من الأقصر؟", ["أحمد","سالم","خالد","لا يمكن معرفته"], "خالد"),
+    q("كل القطط حيوانات، وكل الحيوانات تتنفس. فهل كل القطط تتنفس؟", ["نعم","لا","أحياناً","لا يمكن معرفته"], "نعم"),
+    q("إذا كان اليوم الثلاثاء، فما اليوم بعد 3 أيام؟", ["الخميس","الجمعة","السبت","الأربعاء"], "الجمعة"),
+    q("عمر أكبر من سعد بسنتين، وسعد عمره 10 سنوات. كم عمر عمر؟", ["8","10","12","14"], "12"),
+    q("كل الطيور لها أجنحة، والبطريق طائر. فهل للبطريق أجنحة؟", ["نعم","لا","ربما","غير معروف"], "نعم"),
+    q("في السلة 5 تفاحات، أخذت منها 2 لنفسك. كم تفاحة بقيت في السلة؟", ["2","3","4","5"], "3"),
+    q("أي رقم لا ينتمي للمجموعة: 3, 9, 12, 10؟", ["3","9","12","10"], "10"),
+    q("لو أ أكبر من ب، و ب أكبر من ج، فهل أ أكبر من ج؟", ["نعم","لا","أحياناً","غير معروف"], "نعم"),
+    q("ماذا يأتي بعد: الاثنين، الثلاثاء، الأربعاء، ؟", ["الخميس","الجمعة","السبت","الأحد"], "الخميس"),
+    q("لدى سارة ضعف عدد أقلام أخيها، وأخوها لديه 4 أقلام. كم قلم لدى سارة؟", ["6","8","10","12"], "8"),
+  ],
+};
+
+const THEMES = {
+  1: { emoji: "🧩", title: "إكمال النمط", subtitle: "شوف النمط وكمّله!" },
+  2: { emoji: "🔍", title: "أوجد المختلف", subtitle: "أيهم لا ينتمي للمجموعة؟" },
+  3: { emoji: "🔢", title: "متتاليات ذكية", subtitle: "اكتشف القاعدة وكمّل السلسلة" },
+  4: { emoji: "🔗", title: "تناظرات لفظية", subtitle: "فكّر بالعلاقة بين الكلمتين" },
+  5: { emoji: "🕵️", title: "ألغاز الاستنتاج", subtitle: "استخدم منطقك لحل اللغز" },
+};
+
+const cfg = THEMES[levelId] || THEMES[1];
+const pool = POOLS[levelId] || POOLS[1];
+document.getElementById("theme-emoji").textContent = cfg.emoji;
+document.getElementById("theme-title").textContent = cfg.title;
+document.getElementById("theme-subtitle").textContent = cfg.subtitle;
+
+function shuffle(arr) { const a = arr.slice(); for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; }
+
+let session = null, timerHandle = null, timeLeft = TIME_PER_Q, queue = [];
+let powerupsLeft = 2;
+
+function startSession() {
+  session = { qIndex: 0, correctCount: 0, streak: 0, best: 0, current: null };
+  queue = shuffle(pool).slice(0, TOTAL_QUESTIONS);
+  document.getElementById("score-count").textContent = 0;
+  powerupsLeft = 2;
+  updatePowerupUI();
+  updateStreakUI();
+  nextQuestion();
+}
+
+function updatePowerupUI() {
+  document.getElementById("powerup-count").textContent = powerupsLeft;
+  document.getElementById("powerup-5050").classList.toggle("disabled", powerupsLeft <= 0);
+}
+
+function usePowerup5050() {
+  if (powerupsLeft <= 0) return;
+  const buttons = Array.from(document.querySelectorAll(".choice-btn:not(.eliminated)"));
+  const wrongButtons = buttons.filter((b) => b.textContent !== session.current.correct);
+  if (wrongButtons.length < 2) return;
+  shuffle(wrongButtons).slice(0, 2).forEach((b) => b.classList.add("eliminated"));
+  powerupsLeft--;
+  updatePowerupUI();
+  Fakker.Economy.spendHint();
+  refreshWallet();
+  Fakker.FX.playTone([392], 0.1);
+}
+document.getElementById("powerup-5050").onclick = usePowerup5050;
+
+function updateStreakUI() {
+  const pill = document.getElementById("streak-pill");
+  pill.textContent = "🔥 " + session.streak;
+  pill.classList.toggle("hot", session.streak >= 3);
+}
+
+function nextQuestion() {
+  if (session.qIndex >= TOTAL_QUESTIONS) return endSession();
+  session.current = { ...queue[session.qIndex], choices: shuffle(queue[session.qIndex].choices) };
+  session.qIndex++;
+  document.getElementById("qtext").textContent = session.current.text;
+  document.getElementById("qcounter").textContent = `سؤال ${session.qIndex} من ${TOTAL_QUESTIONS}`;
+  const choicesEl = document.getElementById("choices");
+  choicesEl.innerHTML = "";
+  session.current.choices.forEach((c) => {
+    const b = document.createElement("div");
+    b.className = "choice-btn";
+    b.textContent = c;
+    b.onclick = () => answer(c, b);
+    choicesEl.appendChild(b);
+  });
+  startTimer();
+}
+
+function startTimer() {
+  clearInterval(timerHandle);
+  timeLeft = TIME_PER_Q;
+  const fill = document.getElementById("timer-fill");
+  fill.style.width = "100%";
+  fill.classList.remove("danger");
+  timerHandle = setInterval(() => {
+    timeLeft -= 0.1;
+    const pct = Math.max(0, (timeLeft / TIME_PER_Q) * 100);
+    fill.style.width = pct + "%";
+    if (pct < 25) fill.classList.add("danger");
+    if (timeLeft <= 0) { clearInterval(timerHandle); answer(null, null); }
+  }, 100);
+}
+
+function answer(choice, btnEl) {
+  clearInterval(timerHandle);
+  const buttons = document.querySelectorAll(".choice-btn");
+  buttons.forEach((b) => b.setAttribute("disabled", "true"));
+  const correct = session.current.correct;
+  const isCorrect = choice === correct;
+  buttons.forEach((b) => { if (b.textContent === correct) b.classList.add("correct"); });
+  if (!isCorrect && btnEl) btnEl.classList.add("wrong");
+
+  if (isCorrect) {
+    session.correctCount++; session.streak++; session.best = Math.max(session.best, session.streak);
+    Fakker.FX.success();
+    const result = Fakker.Economy.awardCorrect(session.streak);
+    Fakker.Celebrate({ message: Fakker.FX.randomPraise(), points: result.points, streakMsg: result.message, mood: "correct" });
+  } else {
+    session.streak = 0;
+    Fakker.FX.wrong();
+    const result = Fakker.Economy.awardWrong();
+    Fakker.Celebrate({ message: Fakker.FX.randomEncourage(), points: result.points, mood: "wrong" });
+  }
+  refreshWallet();
+  document.getElementById("score-count").textContent = session.correctCount;
+  updateStreakUI();
+  setTimeout(nextQuestion, 900);
+}
+
+function computeStars() {
+  const ratio = session.correctCount / TOTAL_QUESTIONS;
+  if (ratio >= 0.85) return 3;
+  if (ratio >= 0.6) return 2;
+  return 1;
+}
+
+function endSession() {
+  const stars = computeStars();
+  Fakker.Progress.record("logic", levelId, { stars, score: session.correctCount });
+  Fakker.Economy.awardCompletion("ألغاز التفكير");
+  refreshWallet();
+  Fakker.FX.confetti();
+  Fakker.FX.win();
+  document.getElementById("win-title").textContent = session.correctCount === TOTAL_QUESTIONS ? "عقل خارق! 🧠✨" : Fakker.FX.randomPraise();
+  document.getElementById("win-stars").textContent = "★".repeat(stars) + "☆".repeat(3 - stars);
+  document.getElementById("win-desc").textContent = `أجبت صح على ${session.correctCount} من ${TOTAL_QUESTIONS} — أفضل تتابع: ${session.best} 🔥`;
+  document.getElementById("win-overlay").hidden = false;
+}
+
+document.getElementById("btn-replay").onclick = () => { document.getElementById("win-overlay").hidden = true; startSession(); };
+document.getElementById("btn-back").onclick = () => { location.href = "../index.html"; };
+
+startSession();
+</script>
+</body>
+</html>

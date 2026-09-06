@@ -1,0 +1,604 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>إكس أو — فكّر</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;700;900&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../shared/style.css">
+<style>
+  .game-header { text-align: center; padding: 18px 16px 4px; }
+  .game-header .theme-emoji { font-size: 40px; }
+  .game-header h1 { font-size: 26px; margin-top: 4px; }
+  .game-header p { margin-top: 4px; }
+
+  .mode-toggle {
+    display: flex;
+    justify-content: center;
+    gap: 8px;
+    margin: 14px 0;
+  }
+  .mode-btn {
+    background: var(--card-bg);
+    box-shadow: 0 4px 14px var(--shadow);
+    border-radius: 999px;
+    padding: 10px 18px;
+    font-weight: 800;
+    font-size: 14px;
+    color: var(--text-soft);
+  }
+  .mode-btn.active { background: var(--accent); color: #fff; }
+
+  .hud {
+    display: flex;
+    justify-content: center;
+    gap: 14px;
+    margin: 10px 0 18px;
+    flex-wrap: wrap;
+  }
+  .status-pill { font-size: 16px; }
+
+  .board-wrap { display: flex; justify-content: center; }
+  .console-frame {
+    padding: 22px;
+    border-radius: 28px;
+    background: linear-gradient(160deg, #1e1b3a, #100e24 75%);
+    box-shadow: inset 0 0 0 2px rgba(255,255,255,.06), 0 20px 40px rgba(15,10,40,.35);
+  }
+  .board {
+    display: grid;
+    gap: 8px;
+  }
+  .cell {
+    background: linear-gradient(160deg, #2a2650, #1c1938);
+    border-radius: 12px;
+    box-shadow: inset 0 0 0 1px rgba(255,255,255,.08), 0 4px 10px rgba(0,0,0,.3);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 30px;
+    font-weight: 900;
+    cursor: pointer;
+    transition: transform .1s ease, box-shadow .15s ease;
+    aspect-ratio: 1/1;
+  }
+  .cell:hover { box-shadow: inset 0 0 0 1px rgba(167,139,250,.5), 0 0 14px rgba(167,139,250,.35); }
+  .cell:active { transform: scale(0.94); }
+  .cell.filled { cursor: default; }
+  .cell.win-cell {
+    background: linear-gradient(160deg, #fde9a8, #fbbf24);
+    box-shadow: 0 0 0 2px #f59e0b, 0 0 22px rgba(251,191,36,.7);
+    animation: win-glow 1s ease-in-out infinite alternate;
+  }
+  @keyframes win-glow { from { filter: brightness(1); } to { filter: brightness(1.25); } }
+  .board[data-size="3"] .cell { width: 92px; }
+  .board[data-size="4"] .cell { width: 76px; font-size: 24px; }
+  .board[data-size="5"] .cell { width: 62px; font-size: 20px; }
+
+  /* إكس أو ألتيميت */
+  .ultimate-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 10px;
+    max-width: 560px;
+    margin: 0 auto;
+  }
+  .sub-board {
+    position: relative;
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 4px;
+    background: linear-gradient(160deg, #2a2650, #1c1938);
+    border-radius: 14px;
+    padding: 6px;
+    box-shadow: inset 0 0 0 1px rgba(255,255,255,.06);
+    border: 3px solid transparent;
+    opacity: 0.5;
+    transition: opacity .2s ease, border-color .2s ease;
+  }
+  .sub-board.active { border-color: #a78bfa; opacity: 1; box-shadow: 0 0 16px rgba(167,139,250,.45); }
+  .sub-board.decided { opacity: 0.3; }
+  .sub-board .mini-cell {
+    aspect-ratio: 1/1;
+    background: rgba(0,0,0,.25);
+    border-radius: 6px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 16px;
+    font-weight: 800;
+    cursor: pointer;
+  }
+  .sub-board .mini-cell.filled { cursor: default; }
+  .sub-board .overlay-mark {
+    position: absolute;
+    inset: 0;
+    display: none;
+    align-items: center;
+    justify-content: center;
+    font-size: 54px;
+    border-radius: 12px;
+    background: rgba(255,255,255,0.75);
+  }
+  .sub-board.decided .overlay-mark { display: flex; }
+
+  @media (prefers-color-scheme: dark) {
+    .sub-board .overlay-mark { background: rgba(0,0,0,0.55); }
+  }
+
+  #win-overlay {
+    position: fixed; inset: 0; background: rgba(20,14,40,0.55);
+    display: flex; align-items: center; justify-content: center; z-index: 500;
+  }
+  #win-overlay .card { max-width: 380px; text-align: center; animation: pop-in .4s ease; }
+  #win-overlay .stars-big { font-size: 44px; letter-spacing: 8px; color: #d4a017; margin: 10px 0; }
+  #win-overlay .actions { display: flex; gap: 10px; margin-top: 18px; }
+  #win-overlay .actions button { flex: 1; }
+  .ghost-btn { background: var(--accent-soft); color: var(--accent); border-radius: var(--radius-md); padding: 14px; font-weight: 800; }
+
+  [hidden] { display: none !important; }
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <div class="brand"><span class="logo-emoji">🧠</span> فكّر</div>
+  <div style="display:flex;align-items:center;gap:8px;">
+    <span class="pill" id="wallet-pill">🪙 0</span>
+    <a href="../store.html" class="pill">🎁 المتجر</a>
+    <a href="../index.html" class="pill">🏠 الرئيسية</a>
+  </div>
+</div>
+
+<div class="game-header">
+  <div class="theme-emoji" id="theme-emoji">⭕</div>
+  <h1 id="theme-title">إكس أو</h1>
+  <p id="theme-subtitle"></p>
+</div>
+
+<div class="mode-toggle">
+  <div class="mode-btn active" id="mode-ai">🤖 ضد الحاسوب</div>
+  <div class="mode-btn" id="mode-friend">👥 مع صديق</div>
+</div>
+
+<div class="hud">
+  <span class="pill status-pill" id="status-pill">دورك</span>
+</div>
+
+<div class="container">
+  <div class="board-wrap"><div class="console-frame" id="classic-frame" hidden><div class="board" id="board"></div></div></div>
+  <div class="board-wrap"><div class="console-frame" id="ultimate-frame" hidden><div class="ultimate-grid" id="ultimate-board"></div></div></div>
+</div>
+
+<div id="win-overlay" hidden>
+  <div class="card">
+    <h2 id="win-title">أحسنت!</h2>
+    <div class="stars-big" id="win-stars">★★★</div>
+    <p id="win-desc"></p>
+    <div class="actions">
+      <button class="ghost-btn" id="btn-replay">🔁 إعادة</button>
+      <button class="big-btn" id="btn-back">الألعاب 🏠</button>
+    </div>
+  </div>
+</div>
+
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-database-compat.js"></script>
+<script src="../shared/firebase-config.js"></script>
+<script src="../shared/progress.js"></script>
+<script src="../shared/economy-config.js"></script>
+<script src="../shared/economy.js"></script>
+<script>
+const profile = Fakker.Profile.get();
+if (!profile) location.href = "../index.html";
+
+Fakker.mountSettingsToggle();
+function refreshWallet() { document.getElementById("wallet-pill").textContent = "🪙 " + Fakker.Wallet.get().balance; }
+refreshWallet();
+
+const params = new URLSearchParams(location.search);
+const levelId = parseInt(params.get("level")) || 1;
+
+const XO_LEVELS = {
+  1: { size: 3, winLen: 3, ai: "easy", symbols: ["🐱","🐶"], emoji: "🐱", title: "قطة ضد كلب", subtitle: "اجمع ٣ متتالية وتفوز!" },
+  2: { size: 3, winLen: 3, ai: "perfect", symbols: ["❌","⭕"], emoji: "⭕", title: "إكس أو الكلاسيكية", subtitle: "ذكاء اصطناعي قوي، حاول تتعادل معه!" },
+  3: { size: 4, winLen: 3, ai: "heuristic", symbols: ["❌","⭕"], emoji: "🔷", title: "شبكة الأربعة", subtitle: "٣ متتالية داخل شبكة ٤×٤" },
+  4: { size: 5, winLen: 4, ai: "heuristic-hard", symbols: ["❌","⭕"], emoji: "🔶", title: "التحدي الخماسي", subtitle: "٤ متتالية داخل شبكة ٥×٥" },
+  5: { mode: "ultimate", symbols: ["❌","⭕"], emoji: "🌌", title: "إكس أو ألتيميت", subtitle: "٩ ألواح صغيرة… استراتيجية حقيقية" },
+};
+
+const cfg = XO_LEVELS[levelId] || XO_LEVELS[2];
+const HUMAN = "X", AI = "O";
+let vsMode = "ai"; // "ai" | "friend"
+
+document.getElementById("theme-emoji").textContent = cfg.emoji;
+document.getElementById("theme-title").textContent = cfg.title;
+document.getElementById("theme-subtitle").textContent = cfg.subtitle;
+
+document.getElementById("mode-ai").onclick = () => setMode("ai");
+document.getElementById("mode-friend").onclick = () => setMode("friend");
+function setMode(m) {
+  vsMode = m;
+  document.getElementById("mode-ai").classList.toggle("active", m === "ai");
+  document.getElementById("mode-friend").classList.toggle("active", m === "friend");
+  restart();
+}
+
+function sym(player) {
+  if (cfg.symbols) return player === HUMAN ? cfg.symbols[0] : cfg.symbols[1];
+  return player;
+}
+
+// ---------------- محرك الإكس أو الكلاسيكي (N×N) ----------------
+function buildLines(size, winLen) {
+  const lines = [];
+  const idx = (r, c) => r * size + c;
+  for (let r = 0; r < size; r++)
+    for (let c = 0; c <= size - winLen; c++)
+      lines.push(Array.from({length: winLen}, (_, k) => idx(r, c + k)));
+  for (let c = 0; c < size; c++)
+    for (let r = 0; r <= size - winLen; r++)
+      lines.push(Array.from({length: winLen}, (_, k) => idx(r + k, c)));
+  for (let r = 0; r <= size - winLen; r++)
+    for (let c = 0; c <= size - winLen; c++)
+      lines.push(Array.from({length: winLen}, (_, k) => idx(r + k, c + k)));
+  for (let r = 0; r <= size - winLen; r++)
+    for (let c = winLen - 1; c < size; c++)
+      lines.push(Array.from({length: winLen}, (_, k) => idx(r + k, c - k)));
+  return lines;
+}
+
+let classic = null;
+
+function newClassicGame() {
+  const size = cfg.size, winLen = cfg.winLen;
+  classic = {
+    size, winLen,
+    board: Array(size * size).fill(null),
+    lines: buildLines(size, winLen),
+    turn: HUMAN,
+    over: false,
+    winCells: [],
+  };
+}
+
+function classicWinner(board, lines) {
+  for (const line of lines) {
+    const v = board[line[0]];
+    if (v && line.every((i) => board[i] === v)) return { winner: v, cells: line };
+  }
+  if (board.every((c) => c !== null)) return { winner: "T", cells: [] };
+  return null;
+}
+
+function renderClassic() {
+  const el = document.getElementById("board");
+  document.getElementById("ultimate-frame").hidden = true;
+  document.getElementById("classic-frame").hidden = false;
+  el.setAttribute("data-size", classic.size);
+  el.style.gridTemplateColumns = `repeat(${classic.size}, auto)`;
+  el.innerHTML = "";
+  classic.board.forEach((v, i) => {
+    const c = document.createElement("div");
+    c.className = "cell" + (v ? " filled" : "") + (classic.winCells.includes(i) ? " win-cell" : "");
+    c.textContent = v ? sym(v) : "";
+    c.onclick = () => classicClick(i);
+    el.appendChild(c);
+  });
+  updateStatus();
+}
+
+function updateStatus() {
+  const pill = document.getElementById("status-pill");
+  if (classic && classic.over) return;
+  if (vsMode === "friend") {
+    pill.textContent = (classic ? classic.turn === HUMAN : true) ? `دور ${sym(HUMAN)}` : `دور ${sym(AI)}`;
+  } else {
+    pill.textContent = (classic ? classic.turn === HUMAN : true) ? "دورك 🙂" : "الحاسوب يفكّر... 🤔";
+  }
+}
+
+function classicClick(i) {
+  if (classic.over || classic.board[i]) return;
+  if (vsMode === "ai" && classic.turn !== HUMAN) return;
+  classic.board[i] = classic.turn;
+  const result = classicWinner(classic.board, classic.lines);
+  if (result) return finishClassic(result);
+  classic.turn = classic.turn === HUMAN ? AI : HUMAN;
+  renderClassic();
+  if (vsMode === "ai" && classic.turn === AI) setTimeout(aiMoveClassic, 450);
+}
+
+function finishClassic(result) {
+  classic.over = true;
+  classic.winCells = result.cells;
+  renderClassic();
+  setTimeout(() => onGameOver(result.winner === "T" ? "T" : (result.winner === HUMAN ? "WIN" : "LOSE")), 350);
+}
+
+function emptyCells(board) {
+  const out = [];
+  board.forEach((v, i) => { if (!v) out.push(i); });
+  return out;
+}
+
+function aiMoveClassic() {
+  let idx;
+  if (cfg.ai === "easy") idx = easyAI();
+  else if (cfg.ai === "perfect") idx = perfectAI();
+  else idx = heuristicAI(cfg.ai === "heuristic-hard");
+  if (idx == null) return;
+  classic.board[idx] = AI;
+  const result = classicWinner(classic.board, classic.lines);
+  if (result) return finishClassic(result);
+  classic.turn = HUMAN;
+  renderClassic();
+}
+
+function findWinningMove(board, lines, player) {
+  for (const i of emptyCells(board)) {
+    const copy = board.slice();
+    copy[i] = player;
+    const r = classicWinner(copy, lines);
+    if (r && r.winner === player) return i;
+  }
+  return null;
+}
+
+function easyAI() {
+  const empties = emptyCells(classic.board);
+  if (Math.random() < 0.35) {
+    const win = findWinningMove(classic.board, classic.lines, AI);
+    if (win != null) return win;
+  }
+  if (Math.random() < 0.45) {
+    const block = findWinningMove(classic.board, classic.lines, HUMAN);
+    if (block != null) return block;
+  }
+  return empties[Math.floor(Math.random() * empties.length)];
+}
+
+function heuristicAI(hard) {
+  const win = findWinningMove(classic.board, classic.lines, AI);
+  if (win != null) return win;
+  const block = findWinningMove(classic.board, classic.lines, HUMAN);
+  if (block != null) return block;
+
+  const size = classic.size;
+  const center = Math.floor(size / 2);
+  const scores = emptyCells(classic.board).map((i) => {
+    let score = 0;
+    for (const line of classic.lines) {
+      if (!line.includes(i)) continue;
+      const vals = line.map((k) => classic.board[k]);
+      if (!vals.includes(HUMAN)) score += Math.pow(3, vals.filter((v) => v === AI).length);
+      if (hard && !vals.includes(AI)) score += 1.2 * Math.pow(3, vals.filter((v) => v === HUMAN).length);
+    }
+    const r = Math.floor(i / size), c = i % size;
+    score += (size - (Math.abs(r - center) + Math.abs(c - center))) * 0.5;
+    score += Math.random() * 0.8;
+    return { i, score };
+  });
+  scores.sort((a, b) => b.score - a.score);
+  return scores.length ? scores[0].i : null;
+}
+
+function perfectAI() {
+  const empties = emptyCells(classic.board);
+  if (empties.length === 9) return 4; // أول حركة: المنتصف دايمًا خيار قوي
+  let best = { score: -Infinity, idx: null };
+  for (const i of empties) {
+    const copy = classic.board.slice();
+    copy[i] = AI;
+    const s = minimax(copy, classic.lines, HUMAN, 1);
+    if (s > best.score) best = { score: s, idx: i };
+  }
+  return best.idx;
+}
+
+function minimax(board, lines, player, depth) {
+  const r = classicWinner(board, lines);
+  if (r) {
+    if (r.winner === AI) return 10 - depth;
+    if (r.winner === HUMAN) return depth - 10;
+    return 0;
+  }
+  const empties = emptyCells(board);
+  if (player === AI) {
+    let best = -Infinity;
+    for (const i of empties) {
+      const copy = board.slice(); copy[i] = AI;
+      best = Math.max(best, minimax(copy, lines, HUMAN, depth + 1));
+    }
+    return best;
+  } else {
+    let best = Infinity;
+    for (const i of empties) {
+      const copy = board.slice(); copy[i] = HUMAN;
+      best = Math.min(best, minimax(copy, lines, AI, depth + 1));
+    }
+    return best;
+  }
+}
+
+// ---------------- إكس أو ألتيميت ----------------
+const LINES3 = [[0,1,2],[3,4,5],[6,7,8],[0,3,6],[1,4,7],[2,5,8],[0,4,8],[2,4,6]];
+let ult = null;
+
+function subWinner(cells) {
+  for (const [a,b,c] of LINES3) {
+    if (cells[a] && cells[a] === cells[b] && cells[a] === cells[c]) return cells[a];
+  }
+  if (cells.every((c) => c !== null)) return "T";
+  return null;
+}
+
+function newUltimateGame() {
+  ult = {
+    subBoards: Array.from({length: 9}, () => Array(9).fill(null)),
+    subWinners: Array(9).fill(null),
+    activeSub: null,
+    turn: HUMAN,
+    over: false,
+    metaWinner: null,
+  };
+}
+
+function renderUltimate() {
+  document.getElementById("classic-frame").hidden = true;
+  document.getElementById("ultimate-frame").hidden = false;
+  const wrap = document.getElementById("ultimate-board");
+  wrap.innerHTML = "";
+  for (let s = 0; s < 9; s++) {
+    const sb = document.createElement("div");
+    sb.className = "sub-board" +
+      (ult.subWinners[s] ? " decided" : "") +
+      ((!ult.over && (ult.activeSub === null || ult.activeSub === s) && !ult.subWinners[s]) ? " active" : "");
+    for (let c = 0; c < 9; c++) {
+      const cell = document.createElement("div");
+      const v = ult.subBoards[s][c];
+      cell.className = "mini-cell" + (v ? " filled" : "");
+      cell.textContent = v ? sym(v) : "";
+      cell.onclick = () => ultimateClick(s, c);
+      sb.appendChild(cell);
+    }
+    const overlay = document.createElement("div");
+    overlay.className = "overlay-mark";
+    if (ult.subWinners[s] && ult.subWinners[s] !== "T") overlay.textContent = sym(ult.subWinners[s]);
+    else if (ult.subWinners[s] === "T") overlay.textContent = "🤝";
+    sb.appendChild(overlay);
+    wrap.appendChild(sb);
+  }
+  const pill = document.getElementById("status-pill");
+  if (!ult.over) {
+    pill.textContent = vsMode === "friend"
+      ? `دور ${sym(ult.turn)}`
+      : (ult.turn === HUMAN ? "دورك 🙂" : "الحاسوب يفكّر... 🤔");
+  }
+}
+
+function ultimateClick(s, c) {
+  if (ult.over) return;
+  if (vsMode === "ai" && ult.turn !== HUMAN) return;
+  if (ult.subWinners[s]) return;
+  if (ult.activeSub !== null && ult.activeSub !== s) return;
+  if (ult.subBoards[s][c]) return;
+  playUltimate(s, c, ult.turn);
+}
+
+function playUltimate(s, c, player) {
+  ult.subBoards[s][c] = player;
+  const w = subWinner(ult.subBoards[s]);
+  if (w) ult.subWinners[s] = w;
+
+  const metaCells = ult.subWinners.map((v) => (v === "X" || v === "O") ? v : null);
+  const metaResult = subWinner(metaCells);
+  const boardFull = ult.subWinners.every((v) => v !== null);
+
+  ult.activeSub = ult.subWinners[c] ? null : c;
+  ult.turn = player === HUMAN ? AI : HUMAN;
+
+  if (metaResult && metaResult !== "T") {
+    ult.over = true; ult.metaWinner = metaResult;
+    renderUltimate();
+    return setTimeout(() => onGameOver(metaResult === HUMAN ? "WIN" : "LOSE"), 350);
+  }
+  if (boardFull) {
+    ult.over = true;
+    renderUltimate();
+    return setTimeout(() => onGameOver("T"), 350);
+  }
+  renderUltimate();
+  if (vsMode === "ai" && ult.turn === AI) setTimeout(aiMoveUltimate, 500);
+}
+
+function countImmediateWins(cells, player) {
+  let n = 0;
+  cells.forEach((v, i) => {
+    if (v) return;
+    const copy = cells.slice(); copy[i] = player;
+    if (subWinner(copy) === player) n++;
+  });
+  return n;
+}
+
+function aiMoveUltimate() {
+  const candidates = [];
+  for (let s = 0; s < 9; s++) {
+    if (ult.subWinners[s]) continue;
+    if (ult.activeSub !== null && ult.activeSub !== s) continue;
+    ult.subBoards[s].forEach((v, c) => { if (!v) candidates.push({ s, c }); });
+  }
+  if (!candidates.length) return;
+
+  let best = { score: -Infinity, move: candidates[0] };
+  for (const mv of candidates) {
+    let score = 0;
+    const simBoard = ult.subBoards[mv.s].slice();
+    simBoard[mv.c] = AI;
+    const subResult = subWinner(simBoard);
+    if (subResult === AI) {
+      score += 50;
+      const metaCells = ult.subWinners.map((v, i) => i === mv.s ? AI : ((v === "X" || v === "O") ? v : null));
+      if (subWinner(metaCells) === AI) score += 1000;
+    } else if (subResult === "T") {
+      score += 5;
+    } else {
+      const denyBoard = ult.subBoards[mv.s].slice();
+      denyBoard[mv.c] = HUMAN;
+      if (subWinner(denyBoard) === HUMAN) score += 30;
+    }
+    if (mv.c === 4) score += 3;
+    if ([0,2,6,8].includes(mv.c)) score += 1;
+
+    if (!ult.subWinners[mv.c]) {
+      score -= countImmediateWins(ult.subBoards[mv.c], HUMAN) * 15;
+    } else {
+      score += 8;
+    }
+    score += Math.random() * 3;
+    if (score > best.score) best = { score, move: mv };
+  }
+  playUltimate(best.move.s, best.move.c, AI);
+}
+
+// ---------------- نهاية الجولة ----------------
+function computeStars(outcome) {
+  if (outcome === "WIN") return 3;
+  if (outcome === "T") return 2;
+  return 1;
+}
+
+function onGameOver(outcome) {
+  const stars = computeStars(outcome);
+  let bonus = null;
+  if (vsMode === "ai") {
+    Fakker.Progress.record("xo", levelId, { stars, score: stars });
+    bonus = Fakker.Economy.awardCompletion("إكس أو");
+    refreshWallet();
+  }
+  Fakker.FX.confetti();
+  if (outcome === "WIN") { Fakker.FX.win(); document.getElementById("win-title").textContent = Fakker.FX.randomPraise(); }
+  else if (outcome === "T") { Fakker.FX.success(); document.getElementById("win-title").textContent = "تعادل مثير! 🤝"; }
+  else { Fakker.FX.wrong(); document.getElementById("win-title").textContent = Fakker.FX.randomEncourage(); }
+
+  document.getElementById("win-stars").textContent = "★".repeat(stars) + "☆".repeat(3 - stars);
+  const base = outcome === "WIN" ? "فزت في هذه الجولة!" : outcome === "T" ? "لعبة متقاربة جداً!" : "حاول مرة ثانية، بتنجح!";
+  document.getElementById("win-desc").textContent = base + (bonus ? " — +" + bonus.points + " نقطة 🪙" : "");
+  document.getElementById("win-overlay").hidden = false;
+}
+
+function restart() {
+  document.getElementById("win-overlay").hidden = true;
+  if (cfg.mode === "ultimate") { newUltimateGame(); renderUltimate(); }
+  else { newClassicGame(); renderClassic(); }
+}
+
+document.getElementById("btn-replay").onclick = restart;
+document.getElementById("btn-back").onclick = () => { location.href = "../index.html"; };
+
+restart();
+</script>
+</body>
+</html>

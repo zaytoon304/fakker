@@ -1,0 +1,440 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>فكّر — منصة الألعاب الذهنية</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;700;900&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="shared/style.css">
+<style>
+  .hero {
+    text-align: center;
+    padding: 30px 20px 10px;
+  }
+  .hero .logo {
+    font-size: 56px;
+    display: inline-block;
+    animation: pop-in .5s ease;
+  }
+  .hero h1 {
+    font-size: 34px;
+    color: var(--accent);
+    margin-top: 6px;
+  }
+  .hero p { margin-top: 6px; font-size: 16px; }
+
+  /* شاشة الترحيب / إدخال الاسم */
+  #welcome-screen .card {
+    max-width: 420px;
+    margin: 0 auto;
+    text-align: center;
+  }
+  .avatar-grid {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 10px;
+    margin: 16px 0 20px;
+  }
+  .avatar-choice {
+    font-size: 28px;
+    background: var(--accent-soft);
+    border-radius: 14px;
+    width: 56px;
+    height: 56px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: transform .15s ease, box-shadow .15s ease;
+  }
+  .avatar-choice.selected {
+    box-shadow: 0 0 0 3px var(--accent);
+    transform: scale(1.08);
+  }
+  #name-input {
+    width: 100%;
+    padding: 14px 16px;
+    font-size: 18px;
+    font-family: inherit;
+    border-radius: var(--radius-md);
+    border: 2px solid var(--accent-soft);
+    text-align: center;
+    margin-bottom: 16px;
+  }
+  #name-input:focus { outline: none; border-color: var(--accent); }
+
+  /* شريط الطالب */
+  .student-pill {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .student-pill .av { font-size: 20px; }
+
+  /* بانر تحدي اليوم */
+  .daily-banner {
+    display: flex; align-items: center; gap: 16px;
+    max-width: 100%; margin: 22px 0 8px; padding: 18px 22px;
+    border-radius: var(--radius-lg);
+    background: linear-gradient(120deg, #0ea5e9, #38bdf8 60%, #fbbf24 130%);
+    box-shadow: 0 6px 16px rgba(14,165,233,.3), 0 16px 30px var(--shadow);
+    transition: transform .18s ease;
+  }
+  .daily-banner:hover { transform: translateY(-2px); }
+  .daily-banner:active { transform: scale(0.98); }
+  .daily-banner-icon {
+    font-size: 34px; width: 58px; height: 58px; flex-shrink: 0;
+    background: rgba(255,255,255,.28); border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+  }
+  .daily-banner-text { flex: 1; }
+  .daily-banner-text h3 { color: #fff; font-size: 19px; text-shadow: 0 1px 4px rgba(0,0,0,.15); }
+  .daily-banner-text p { color: rgba(255,255,255,.92); font-size: 13px; margin-top: 2px; }
+  .daily-banner-streak {
+    background: rgba(255,255,255,.25); color: #fff; font-weight: 900;
+    padding: 8px 14px; border-radius: 999px; font-size: 15px; flex-shrink: 0;
+  }
+
+  /* شبكة المستويات */
+  .levels-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 16px;
+    margin-top: 20px;
+  }
+  .level-card {
+    border-radius: var(--radius-lg);
+    padding: 26px 18px 24px;
+    box-shadow: 0 4px 10px rgba(0,0,0,.08), 0 16px 30px var(--shadow);
+    color: #fff;
+    text-align: center;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 6px;
+    transition: transform .18s ease, box-shadow .18s ease;
+    position: relative;
+    overflow: hidden;
+    isolation: isolate;
+  }
+  .level-card::before {
+    content: "";
+    position: absolute; inset: 0;
+    background: linear-gradient(155deg, rgba(255,255,255,.32), rgba(255,255,255,0) 55%);
+    pointer-events: none;
+  }
+  .level-card::after {
+    content: attr(data-watermark);
+    position: absolute;
+    font-size: 92px;
+    left: -14px; bottom: -22px;
+    opacity: .16;
+    transform: rotate(-12deg);
+    z-index: -1;
+    filter: blur(.3px);
+  }
+  .level-card:hover { transform: translateY(-3px); box-shadow: 0 6px 14px rgba(0,0,0,.1), 0 20px 36px var(--shadow); }
+  .level-card:active { transform: scale(0.97); }
+  .level-card .icon-badge {
+    width: 68px; height: 68px; border-radius: 50%;
+    background: linear-gradient(155deg, rgba(255,255,255,.55), rgba(255,255,255,.12));
+    display: flex; align-items: center; justify-content: center;
+    font-size: 36px; margin-bottom: 4px;
+    box-shadow: inset 0 2px 6px rgba(255,255,255,.4), 0 4px 10px rgba(0,0,0,.12);
+  }
+  .level-card h3 { font-size: 21px; text-shadow: 0 2px 6px rgba(0,0,0,.15); }
+  .level-card p { color: rgba(255,255,255,.92); font-size: 13px; }
+  .level-card .stage-tag {
+    margin-top: 4px; font-size: 11px; font-weight: 800;
+    background: rgba(255,255,255,.22); padding: 3px 12px; border-radius: 999px;
+    letter-spacing: .5px;
+  }
+  .level-card[data-level="1"] { background: linear-gradient(155deg, #34d976, #16a34a); }
+  .level-card[data-level="2"] { background: linear-gradient(155deg, #4f93ff, #1d4ed8); }
+  .level-card[data-level="3"] { background: linear-gradient(155deg, #bd6bfb, #7e22ce); }
+  .level-card[data-level="4"] { background: linear-gradient(155deg, #fb9147, #c2410c); }
+  .level-card[data-level="5"] { background: linear-gradient(155deg, #f56464, #b91c1c); }
+
+  .section-title {
+    margin: 32px 0 6px;
+    font-size: 22px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+  .section-title .badge-count {
+    font-size: 13px;
+    background: var(--accent-soft);
+    color: var(--accent);
+    border-radius: 999px;
+    padding: 3px 12px;
+    font-weight: 700;
+  }
+
+  /* شبكة الألعاب */
+  .games-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
+    gap: 16px;
+    margin-top: 14px;
+  }
+  .game-card {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    text-align: right;
+    transition: transform .18s ease, box-shadow .18s ease;
+  }
+  .game-card:hover { transform: translateY(-3px); }
+  .game-card .top-row {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+  .game-card .emoji {
+    font-size: 32px;
+    background: linear-gradient(155deg, var(--accent-soft), #ffffff 120%);
+    width: 60px;
+    height: 60px;
+    border-radius: 16px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    box-shadow: inset 0 0 0 1px rgba(124,58,237,.12), 0 4px 10px rgba(124,58,237,.12);
+  }
+  .game-card h3 { font-size: 18px; }
+  .game-card .stars { font-size: 15px; letter-spacing: 2px; color: #d4a017; }
+  .game-card .play-btn {
+    margin-top: 4px;
+    background: linear-gradient(135deg, var(--accent), #5b21b6);
+    color: #fff;
+    border-radius: 12px;
+    padding: 10px;
+    font-weight: 800;
+    font-size: 15px;
+    box-shadow: 0 6px 14px rgba(124,58,237,.3);
+    text-align: center;
+  }
+
+  .back-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 6px;
+    cursor: pointer;
+    color: var(--accent);
+    font-weight: 800;
+    width: fit-content;
+  }
+
+  [hidden] { display: none !important; }
+
+  @media (max-width: 480px) {
+    .hero h1 { font-size: 26px; }
+  }
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <div class="brand"><span class="logo-emoji">🧠</span> فكّر</div>
+  <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
+    <span class="pill" id="wallet-pill" hidden>🪙 0</span>
+    <a href="store.html" class="pill" id="store-link" hidden>🎁 المتجر</a>
+    <div id="student-badge" class="pill student-pill" hidden>
+      <span class="av"></span>
+      <span class="name"></span>
+      <span>⭐ <span class="stars">0</span></span>
+    </div>
+  </div>
+</div>
+
+<!-- شاشة الترحيب: إدخال الاسم واختيار الشخصية -->
+<section id="welcome-screen" class="center-screen">
+  <div class="card">
+    <h2>أهلاً فيك! 👋</h2>
+    <p style="margin-top:8px;">وش اسمك؟</p>
+    <input id="name-input" type="text" maxlength="20" placeholder="اكتب اسمك هنا">
+    <p style="margin-bottom:8px;">اختر شخصيتك</p>
+    <div class="avatar-grid" id="avatar-grid"></div>
+    <button class="big-btn" id="start-btn" style="width:100%;">يلا نبدأ 🚀</button>
+  </div>
+</section>
+
+<!-- الصفحة الرئيسية: اختيار المستوى -->
+<main class="container" id="home-screen" hidden>
+  <div class="hero">
+    <div class="logo">🧠</div>
+    <h1>فكّر</h1>
+    <p id="hero-greeting">اختر مستواك الدراسي وابدأ التحدي!</p>
+  </div>
+
+  <a href="games/daily.html" class="daily-banner" id="daily-banner">
+    <div class="daily-banner-icon">☀️</div>
+    <div class="daily-banner-text">
+      <h3>تحدي اليوم</h3>
+      <p id="daily-banner-status">سؤال جديد كل يوم — حافظ على سلسلتك!</p>
+    </div>
+    <div class="daily-banner-streak" id="daily-banner-streak">🔥 0</div>
+  </a>
+
+  <div class="levels-grid" id="levels-grid"></div>
+</main>
+
+<!-- شاشة الألعاب داخل مستوى معيّن -->
+<main class="container" id="games-screen" hidden>
+  <div class="back-row" id="back-to-levels">→ رجوع للمستويات</div>
+  <div class="section-title">
+    <span id="games-title"></span>
+    <span class="badge-count" id="games-total-stars"></span>
+  </div>
+  <div class="games-grid" id="games-grid"></div>
+</main>
+
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-database-compat.js"></script>
+<script src="shared/firebase-config.js"></script>
+<script src="shared/progress.js"></script>
+<script src="shared/economy-config.js"></script>
+<script src="shared/economy.js"></script>
+<script>
+  const AVATARS = ["🦊","🐼","🦁","🐸","🦉","🐢","🐯","🦄","🐧","🐝"];
+  let selectedAvatar = AVATARS[0];
+
+  function renderAvatarGrid() {
+    const grid = document.getElementById("avatar-grid");
+    grid.innerHTML = "";
+    AVATARS.forEach((av) => {
+      const el = document.createElement("div");
+      el.className = "avatar-choice" + (av === selectedAvatar ? " selected" : "");
+      el.textContent = av;
+      el.onclick = () => { selectedAvatar = av; renderAvatarGrid(); };
+      grid.appendChild(el);
+    });
+  }
+
+  function showStudentBadge(profile) {
+    const badge = document.getElementById("student-badge");
+    badge.hidden = false;
+    badge.querySelector(".av").textContent = profile.avatar;
+    badge.querySelector(".name").textContent = profile.name;
+    badge.querySelector(".stars").textContent = Fakker.Progress.totalStars();
+    const greetings = ["هيا يا بطل، اختر مستواك وابدأ التحدي!", "مستعد لتحدٍّ جديد؟", "كل يوم فرصة تتعلّم فيها شي جديد!"];
+    document.getElementById("hero-greeting").textContent =
+      profile.name + "، " + greetings[Math.floor(Math.random() * greetings.length)];
+
+    document.getElementById("wallet-pill").hidden = false;
+    document.getElementById("wallet-pill").textContent = "🪙 " + Fakker.Wallet.get().balance;
+    document.getElementById("store-link").hidden = false;
+  }
+
+  function goHome() {
+    document.getElementById("welcome-screen").hidden = true;
+    document.getElementById("games-screen").hidden = true;
+    document.getElementById("home-screen").hidden = false;
+    renderDailyBanner();
+  }
+
+  function renderDailyBanner() {
+    const streak = Fakker.Daily.getStreak();
+    document.getElementById("daily-banner-streak").textContent = "🔥 " + streak;
+    document.getElementById("daily-banner-status").textContent = Fakker.Daily.isCompletedToday()
+      ? "أحسنت! حليت تحدي اليوم — تعال بكرة 🌙"
+      : "سؤال جديد كل يوم — حافظ على سلسلتك!";
+  }
+
+  function renderLevels() {
+    const grid = document.getElementById("levels-grid");
+    grid.innerHTML = "";
+    FAKKER_LEVELS.forEach((lv) => {
+      const el = document.createElement("div");
+      el.className = "level-card";
+      el.setAttribute("data-level", lv.id);
+      el.setAttribute("data-watermark", lv.icon);
+      el.innerHTML = `
+        <div class="icon-badge">${lv.icon}</div>
+        <h3>${lv.short}</h3>
+        <p>${lv.grade}</p>
+        <span class="stage-tag">${lv.stage}</span>
+      `;
+      el.onclick = () => openLevel(lv);
+      grid.appendChild(el);
+    });
+  }
+
+  function openLevel(level) {
+    document.getElementById("home-screen").hidden = true;
+    document.getElementById("games-screen").hidden = false;
+    document.getElementById("games-title").textContent = level.emoji + " ألعاب " + level.short;
+
+    const grid = document.getElementById("games-grid");
+    grid.innerHTML = "";
+    const trackedGames = FAKKER_GAMES.filter((g) => !g.external);
+    let totalStars = 0, maxStars = trackedGames.length * 3;
+
+    FAKKER_GAMES.forEach((game) => {
+      const el = document.createElement("div");
+      el.className = "card game-card";
+      let statusRow;
+      if (game.external) {
+        statusRow = `<div class="stars" style="color:var(--accent); letter-spacing:0;">🌐 لعبة من مدارس الأرقم</div>`;
+      } else {
+        const prog = Fakker.Progress.get(game.id, level.id);
+        totalStars += prog.bestStars;
+        statusRow = `<div class="stars">${"★".repeat(prog.bestStars)}${"☆".repeat(3 - prog.bestStars)}</div>`;
+      }
+      el.innerHTML = `
+        <div class="top-row">
+          <div class="emoji">${game.emoji}</div>
+          <div>
+            <h3>${game.name}</h3>
+            ${statusRow}
+          </div>
+        </div>
+        <p>${game.desc}</p>
+        <div class="play-btn">العب الآن</div>
+      `;
+      el.onclick = () => {
+        if (game.external) {
+          const q = new URLSearchParams({ src: game.src, title: game.name, subtitle: game.desc, emoji: game.emoji });
+          window.location.href = "games/embed.html?" + q.toString();
+        } else {
+          window.location.href = game.file + "?level=" + level.id;
+        }
+      };
+      grid.appendChild(el);
+    });
+
+    document.getElementById("games-total-stars").textContent = totalStars + " / " + maxStars + " ⭐";
+  }
+
+  document.getElementById("back-to-levels").onclick = goHome;
+
+  document.getElementById("start-btn").onclick = () => {
+    const name = document.getElementById("name-input").value.trim();
+    if (!name) {
+      document.getElementById("name-input").focus();
+      document.getElementById("name-input").style.borderColor = "#ef4444";
+      return;
+    }
+    const profile = Fakker.Profile.create(name, selectedAvatar);
+    showStudentBadge(profile);
+    goHome();
+  };
+
+  // بدء التشغيل
+  Fakker.mountSettingsToggle();
+  renderAvatarGrid();
+  renderLevels();
+  const existing = Fakker.Profile.get();
+  if (existing) {
+    showStudentBadge(existing);
+    goHome();
+  } else {
+    document.getElementById("welcome-screen").hidden = false;
+  }
+</script>
+</body>
+</html>

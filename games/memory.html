@@ -1,0 +1,358 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>لعبة الذاكرة — فكّر</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;700;900&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../shared/style.css">
+<style>
+  .game-header {
+    text-align: center;
+    padding: 18px 16px 4px;
+  }
+  .game-header .theme-emoji { font-size: 40px; }
+  .game-header h1 { font-size: 26px; margin-top: 4px; }
+  .game-header p { margin-top: 4px; }
+
+  .hud {
+    display: flex;
+    justify-content: center;
+    gap: 14px;
+    margin: 14px 0 22px;
+    flex-wrap: wrap;
+  }
+
+  .table-surface {
+    max-width: 720px; margin: 0 auto;
+    padding: 26px 18px;
+    border-radius: 32px;
+    background:
+      radial-gradient(circle at 50% 0%, rgba(255,255,255,.08), transparent 60%),
+      linear-gradient(160deg, #241b3d, #150f28 70%);
+    box-shadow: inset 0 0 0 2px rgba(255,255,255,.06), 0 20px 40px rgba(20,10,50,.35);
+  }
+  @media (prefers-color-scheme: light) {
+    .table-surface {
+      background:
+        radial-gradient(circle at 50% 0%, rgba(255,255,255,.5), transparent 60%),
+        linear-gradient(160deg, #2f2350, #1c1533 70%);
+    }
+  }
+
+  .board {
+    display: grid;
+    gap: 10px;
+    max-width: 640px;
+    margin: 0 auto;
+    perspective: 1000px;
+  }
+
+  .memcard {
+    position: relative;
+    aspect-ratio: 3 / 4;
+    cursor: pointer;
+  }
+  .memcard .inner {
+    position: absolute;
+    inset: 0;
+    transform-style: preserve-3d;
+    transition: transform .45s cubic-bezier(.2,.9,.3,1.1);
+    border-radius: 14px;
+  }
+  .memcard.flipped .inner,
+  .memcard.matched .inner { transform: rotateY(180deg); }
+
+  .memcard .face {
+    position: absolute;
+    inset: 0;
+    border-radius: 14px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    backface-visibility: hidden;
+    box-shadow: 0 6px 16px var(--shadow);
+    font-weight: 800;
+    text-align: center;
+    padding: 4px;
+    overflow: hidden;
+  }
+  .memcard .face-back {
+    background:
+      repeating-linear-gradient(45deg, rgba(255,255,255,.07) 0 6px, transparent 6px 16px),
+      linear-gradient(150deg, var(--lvl-accent, var(--accent)), #1a1030 120%);
+    color: #fff;
+    font-size: 24px;
+    border: 2px solid rgba(255,255,255,.18);
+  }
+  .memcard .face-front {
+    background: var(--card-bg);
+    color: var(--text);
+    transform: rotateY(180deg);
+    font-size: 26px;
+    line-height: 1.15;
+    word-break: break-word;
+    border: 2px solid var(--lvl-accent, var(--accent));
+  }
+  .memcard.matched .face-front {
+    background: linear-gradient(160deg, #fff9e0, #fde9a8);
+    color: #92650a;
+    border-color: #d4a017;
+    box-shadow: 0 0 0 3px rgba(212,160,23,.35), 0 8px 18px rgba(212,160,23,.35);
+  }
+  .memcard.wrong .inner { animation: shake .4s; }
+
+  .board[data-cols="3"] { grid-template-columns: repeat(3, 1fr); }
+  .board[data-cols="4"] { grid-template-columns: repeat(4, 1fr); }
+  .board[data-cols="5"] { grid-template-columns: repeat(5, 1fr); }
+  .board[data-cols="6"] { grid-template-columns: repeat(6, 1fr); }
+
+  @media (max-width: 480px) {
+    .board[data-cols="5"], .board[data-cols="6"] { grid-template-columns: repeat(4, 1fr); }
+    .memcard .face { font-size: 20px; }
+  }
+
+  #win-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(20, 14, 40, 0.55);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 500;
+  }
+  #win-overlay .card {
+    max-width: 380px;
+    text-align: center;
+    animation: pop-in .4s ease;
+  }
+  #win-overlay .stars-big { font-size: 44px; letter-spacing: 8px; color: #d4a017; margin: 10px 0; }
+  #win-overlay .actions { display: flex; gap: 10px; margin-top: 18px; }
+  #win-overlay .actions button { flex: 1; }
+  .ghost-btn {
+    background: var(--accent-soft);
+    color: var(--accent);
+    border-radius: var(--radius-md);
+    padding: 14px;
+    font-weight: 800;
+  }
+
+  [hidden] { display: none !important; }
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <div class="brand"><span class="logo-emoji">🧠</span> فكّر</div>
+  <div style="display:flex;align-items:center;gap:8px;">
+    <span class="pill" id="wallet-pill">🪙 0</span>
+    <a href="../store.html" class="pill">🎁 المتجر</a>
+    <a href="../index.html" class="pill">🏠 الرئيسية</a>
+  </div>
+</div>
+
+<div class="game-header">
+  <div class="theme-emoji" id="theme-emoji">🧠</div>
+  <h1 id="theme-title">لعبة الذاكرة</h1>
+  <p id="theme-subtitle"></p>
+</div>
+
+<div class="hud">
+  <span class="pill">🔄 المحاولات: <span id="moves-count">0</span></span>
+  <span class="pill">✅ <span id="matched-count">0</span> / <span id="total-pairs">0</span></span>
+</div>
+
+<div class="container">
+  <div class="table-surface"><div class="board" id="board"></div></div>
+</div>
+
+<div id="win-overlay" hidden>
+  <div class="card">
+    <h2 id="win-title">أحسنت!</h2>
+    <div class="stars-big" id="win-stars">★★★</div>
+    <p id="win-desc">أنهيت اللعبة بعدد محاولات ممتاز</p>
+    <div class="actions">
+      <button class="ghost-btn" id="btn-replay">🔁 إعادة</button>
+      <button class="big-btn" id="btn-back">الألعاب 🏠</button>
+    </div>
+  </div>
+</div>
+
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-database-compat.js"></script>
+<script src="../shared/firebase-config.js"></script>
+<script src="../shared/progress.js"></script>
+<script src="../shared/economy-config.js"></script>
+<script src="../shared/economy.js"></script>
+<script>
+  Fakker.mountSettingsToggle();
+  function refreshWallet() { document.getElementById("wallet-pill").textContent = "🪙 " + Fakker.Wallet.get().balance; }
+  refreshWallet();
+
+  // ---- إعداد اللعبة حسب المستوى ----
+  const LEVEL_ACCENTS = { 1: "#22c55e", 2: "#3b82f6", 3: "#a855f7", 4: "#f97316", 5: "#ef4444" };
+  const LEVEL_THEMES = {
+    1: {
+      emoji: "🍇", title: "بستان الفواكه", subtitle: "لاقِ كل فاكهة مع أختها التوأم",
+      cols: 3, pairsCount: 3,
+      pool: ["🍎", "🍌", "🍇", "🍓", "🍉", "🍑", "🍒", "🥝"].map((f) => ({ pairKey: f, a: f, b: f })),
+    },
+    2: {
+      emoji: "🐝", title: "من صاحبي؟", subtitle: "طابق كل كائن مع الشي المرتبط فيه",
+      cols: 4, pairsCount: 6,
+      pool: [
+        ["🐝","🍯"], ["🐄","🥛"], ["🐔","🥚"], ["🐑","🧶"],
+        ["🐟","🌊"], ["🐛","🦋"], ["🌱","🌳"], ["🕷️","🕸️"],
+      ].map(([a,b]) => ({ pairKey: a+b, a, b })),
+    },
+    3: {
+      emoji: "🔢", title: "أرض الأرقام", subtitle: "طابق كل مسألة مع ناتجها الصحيح",
+      cols: 4, pairsCount: 8,
+      pool: [
+        ["6×7","42"], ["81÷9","9"], ["12×5","60"], ["100-37","63"],
+        ["9×9","81"], ["144÷12","12"], ["15×3","45"], ["8×8","64"],
+      ].map(([a,b]) => ({ pairKey: a+b, a, b })),
+    },
+    4: {
+      emoji: "🌍", title: "مملكة اللغة", subtitle: "طابق كل كلمة عربية مع ترجمتها",
+      cols: 5, pairsCount: 10,
+      pool: [
+        ["كتاب","Book"], ["ماء","Water"], ["شمس","Sun"], ["قمر","Moon"],
+        ["مدرسة","School"], ["صديق","Friend"], ["علم","Science"],
+        ["وطن","Homeland"], ["سلام","Peace"], ["حرية","Freedom"],
+      ].map(([a,b]) => ({ pairKey: a+b, a, b })),
+    },
+    5: {
+      emoji: "🧪", title: "برج المعرفة", subtitle: "طابق الرمز الكيميائي مع اسم العنصر",
+      cols: 6, pairsCount: 12,
+      pool: [
+        ["H","الهيدروجين"], ["O","الأكسجين"], ["Na","الصوديوم"], ["Fe","الحديد"],
+        ["Au","الذهب"], ["C","الكربون"], ["Ca","الكالسيوم"], ["N","النيتروجين"],
+        ["Cl","الكلور"], ["K","البوتاسيوم"], ["Ag","الفضة"], ["Cu","النحاس"],
+      ].map(([a,b]) => ({ pairKey: a+b, a, b })),
+    },
+  };
+
+  const params = new URLSearchParams(location.search);
+  const levelId = parseInt(params.get("level")) || 1;
+  const theme = LEVEL_THEMES[levelId] || LEVEL_THEMES[1];
+
+  // حماية بسيطة: لازم يكون في بروفايل
+  const profile = Fakker.Profile.get();
+  if (!profile) { location.href = "../index.html"; }
+
+  document.getElementById("theme-emoji").textContent = theme.emoji;
+  document.getElementById("theme-title").textContent = theme.title;
+  document.getElementById("theme-subtitle").textContent = theme.subtitle;
+  document.getElementById("total-pairs").textContent = theme.pairsCount;
+  document.documentElement.style.setProperty("--lvl-accent", LEVEL_ACCENTS[levelId] || LEVEL_ACCENTS[1]);
+
+  let moves = 0, matchedPairs = 0, flipped = [], lock = false;
+
+  function shuffle(arr) {
+    const a = arr.slice();
+    for (let i = a.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [a[i], a[j]] = [a[j], a[i]];
+    }
+    return a;
+  }
+
+  function buildCards() {
+    const chosen = shuffle(theme.pool).slice(0, theme.pairsCount);
+    let cards = [];
+    chosen.forEach((pair, idx) => {
+      cards.push({ pairId: idx, display: pair.a });
+      cards.push({ pairId: idx, display: pair.b });
+    });
+    return shuffle(cards);
+  }
+
+  function render() {
+    const board = document.getElementById("board");
+    board.setAttribute("data-cols", theme.cols);
+    board.innerHTML = "";
+    const cards = buildCards();
+    cards.forEach((card, i) => {
+      const el = document.createElement("div");
+      el.className = "memcard";
+      el.dataset.index = i;
+      el.dataset.pairId = card.pairId;
+      el.innerHTML = `
+        <div class="inner">
+          <div class="face face-back">${theme.emoji}</div>
+          <div class="face face-front">${card.display}</div>
+        </div>`;
+      el.onclick = () => onCardClick(el);
+      board.appendChild(el);
+    });
+  }
+
+  function onCardClick(el) {
+    if (lock) return;
+    if (el.classList.contains("flipped") || el.classList.contains("matched")) return;
+    el.classList.add("flipped");
+    flipped.push(el);
+    if (flipped.length === 2) {
+      moves++;
+      document.getElementById("moves-count").textContent = moves;
+      lock = true;
+      const [a, b] = flipped;
+      if (a.dataset.pairId === b.dataset.pairId) {
+        setTimeout(() => {
+          a.classList.add("matched");
+          b.classList.add("matched");
+          matchedPairs++;
+          document.getElementById("matched-count").textContent = matchedPairs;
+          Fakker.FX.success();
+          flipped = [];
+          lock = false;
+          if (matchedPairs === theme.pairsCount) setTimeout(onWin, 400);
+        }, 350);
+      } else {
+        a.classList.add("wrong"); b.classList.add("wrong");
+        Fakker.FX.wrong();
+        setTimeout(() => {
+          a.classList.remove("flipped", "wrong");
+          b.classList.remove("flipped", "wrong");
+          flipped = [];
+          lock = false;
+        }, 800);
+      }
+    }
+  }
+
+  function computeStars() {
+    const par = theme.pairsCount;
+    if (moves <= par * 1.4) return 3;
+    if (moves <= par * 2.2) return 2;
+    return 1;
+  }
+
+  function onWin() {
+    const stars = computeStars();
+    Fakker.Progress.record("memory", levelId, { stars, score: moves });
+    const bonus = Fakker.Economy.awardCompletion("لعبة الذاكرة");
+    refreshWallet();
+    Fakker.FX.confetti();
+    Fakker.FX.win();
+    document.getElementById("win-title").textContent = Fakker.FX.randomPraise();
+    document.getElementById("win-stars").textContent = "★".repeat(stars) + "☆".repeat(3 - stars);
+    document.getElementById("win-desc").textContent = "أنهيت التحدي بعدد " + moves + " محاولة — +" + bonus.points + " نقطة 🪙";
+    document.getElementById("win-overlay").hidden = false;
+  }
+
+  document.getElementById("btn-replay").onclick = () => {
+    moves = 0; matchedPairs = 0; flipped = []; lock = false;
+    document.getElementById("moves-count").textContent = 0;
+    document.getElementById("matched-count").textContent = 0;
+    document.getElementById("win-overlay").hidden = true;
+    render();
+  };
+  document.getElementById("btn-back").onclick = () => { location.href = "../index.html"; };
+
+  render();
+</script>
+</body>
+</html>

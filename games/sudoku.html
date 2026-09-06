@@ -1,0 +1,392 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>سودوكو — فكّر</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;700;900&family=JetBrains+Mono:wght@500;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../shared/style.css">
+<style>
+  .game-header { text-align: center; padding: 18px 16px 4px; }
+  .game-header .theme-emoji { font-size: 40px; }
+  .game-header h1 { font-size: 26px; margin-top: 4px; }
+  .game-header p { margin-top: 4px; }
+
+  .hud {
+    display: flex; justify-content: center; gap: 14px;
+    margin: 14px 0 18px; flex-wrap: wrap;
+  }
+
+  .board-wrap { display: flex; justify-content: center; }
+  .blueprint-mat {
+    padding: 26px;
+    border-radius: 20px;
+    background-color: #0f2f52;
+    background-image:
+      linear-gradient(rgba(255,255,255,.09) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(255,255,255,.09) 1px, transparent 1px),
+      linear-gradient(rgba(255,255,255,.05) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(255,255,255,.05) 1px, transparent 1px);
+    background-size: 40px 40px, 40px 40px, 8px 8px, 8px 8px;
+    box-shadow: inset 0 0 0 2px rgba(255,255,255,.12), 0 20px 40px rgba(10,30,60,.35);
+    position: relative;
+  }
+  .blueprint-mat::before {
+    content: "📐";
+    position: absolute; top: 10px; left: 14px; font-size: 20px; opacity: .5;
+  }
+  @media (prefers-color-scheme: dark) { .blueprint-mat { background-color: #081b30; } }
+
+  .sboard {
+    display: grid;
+    background: #fdfefe;
+    gap: 1px;
+    border-radius: 10px;
+    overflow: hidden;
+    box-shadow: 0 10px 26px rgba(0,0,0,.35), 0 0 0 3px #0f2f52;
+  }
+  .scell {
+    background: #fdfefe;
+    display: flex; align-items: center; justify-content: center;
+    font-weight: 800;
+    font-family: 'JetBrains Mono', 'Courier New', monospace;
+    cursor: pointer;
+    user-select: none;
+    color: #0f2f52;
+  }
+  .scell.given { color: #1d4ed8; background: #eef4ff; cursor: default; }
+  .scell.selected { background: #fde68a; box-shadow: inset 0 0 0 2px #f59e0b; }
+  .scell.conflict { background: #fecaca; color: #b91c1c; }
+  .scell.hinted { color: #16a34a; }
+
+  .box-border-right { border-inline-end: 3px solid #0f2f52 !important; }
+  .box-border-bottom { border-block-end: 3px solid #0f2f52 !important; }
+
+  .numpad {
+    display: flex; justify-content: center; flex-wrap: wrap;
+    gap: 8px; margin: 20px auto 0; max-width: 480px;
+  }
+  .num-btn {
+    background: var(--card-bg);
+    box-shadow: 0 4px 12px var(--shadow);
+    border-radius: 12px;
+    width: 48px; height: 48px;
+    font-size: 20px; font-weight: 800;
+    display: flex; align-items: center; justify-content: center;
+  }
+  .num-btn.erase { background: var(--accent-soft); color: var(--accent); font-size: 18px; }
+
+  .tool-row {
+    display: flex; justify-content: center; gap: 10px; margin-top: 14px;
+  }
+  .tool-btn {
+    background: var(--card-bg); box-shadow: 0 4px 12px var(--shadow);
+    border-radius: 999px; padding: 10px 18px; font-weight: 700; font-size: 14px;
+  }
+
+  #loading { text-align: center; padding: 60px 20px; font-size: 18px; color: var(--text-soft); }
+
+  #win-overlay {
+    position: fixed; inset: 0; background: rgba(20,14,40,0.55);
+    display: flex; align-items: center; justify-content: center; z-index: 500;
+  }
+  #win-overlay .card { max-width: 380px; text-align: center; animation: pop-in .4s ease; }
+  #win-overlay .stars-big { font-size: 44px; letter-spacing: 8px; color: #d4a017; margin: 10px 0; }
+  #win-overlay .actions { display: flex; gap: 10px; margin-top: 18px; }
+  #win-overlay .actions button { flex: 1; }
+  .ghost-btn { background: var(--accent-soft); color: var(--accent); border-radius: var(--radius-md); padding: 14px; font-weight: 800; }
+
+  [hidden] { display: none !important; }
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <div class="brand"><span class="logo-emoji">🧠</span> فكّر</div>
+  <div style="display:flex;align-items:center;gap:8px;">
+    <span class="pill" id="wallet-pill">🪙 0</span>
+    <a href="../store.html" class="pill">🎁 المتجر</a>
+    <a href="../index.html" class="pill">🏠 الرئيسية</a>
+  </div>
+</div>
+
+<div class="game-header">
+  <div class="theme-emoji">🔢</div>
+  <h1 id="theme-title">سودوكو</h1>
+  <p id="theme-subtitle"></p>
+</div>
+
+<div class="hud">
+  <span class="pill">💡 التلميحات المستخدمة: <span id="hints-count">0</span></span>
+</div>
+
+<div id="loading">🧩 جاري تحضير اللغز...</div>
+
+<div class="container" id="game-area" hidden>
+  <div class="board-wrap"><div class="blueprint-mat"><div class="sboard" id="board"></div></div></div>
+  <div class="numpad" id="numpad"></div>
+  <div class="tool-row">
+    <div class="tool-btn" id="btn-hint">💡 تلميح</div>
+    <div class="tool-btn" id="btn-check">✅ تحقق</div>
+  </div>
+</div>
+
+<div id="win-overlay" hidden>
+  <div class="card">
+    <h2 id="win-title">أحسنت!</h2>
+    <div class="stars-big" id="win-stars">★★★</div>
+    <p id="win-desc"></p>
+    <div class="actions">
+      <button class="ghost-btn" id="btn-replay">🔁 لغز جديد</button>
+      <button class="big-btn" id="btn-back">الألعاب 🏠</button>
+    </div>
+  </div>
+</div>
+
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-database-compat.js"></script>
+<script src="../shared/firebase-config.js"></script>
+<script src="../shared/progress.js"></script>
+<script src="../shared/economy-config.js"></script>
+<script src="../shared/economy.js"></script>
+<script>
+const profile = Fakker.Profile.get();
+if (!profile) location.href = "../index.html";
+
+Fakker.mountSettingsToggle();
+function refreshWallet() { document.getElementById("wallet-pill").textContent = "🪙 " + Fakker.Wallet.get().balance; }
+refreshWallet();
+
+const params = new URLSearchParams(location.search);
+const levelId = parseInt(params.get("level")) || 1;
+
+const SUDOKU_LEVELS = {
+  1: { N: 4, boxR: 2, boxC: 2, removed: 6,  title: "سودوكو الأشكال", subtitle: "شبكة ٤×٤ صغيرة وسهلة" },
+  2: { N: 6, boxR: 2, boxC: 3, removed: 16, title: "سودوكو ٦×٦", subtitle: "خطوة أكبر شوي!" },
+  3: { N: 9, boxR: 3, boxC: 3, removed: 36, title: "سودوكو ٩×٩ (سهل)", subtitle: "الشبكة الكاملة، لكن بمساعدة كافية" },
+  4: { N: 9, boxR: 3, boxC: 3, removed: 46, title: "سودوكو ٩×٩ (متوسط)", subtitle: "تحدٍّ حقيقي" },
+  5: { N: 9, boxR: 3, boxC: 3, removed: 55, title: "سودوكو ٩×٩ (صعب)", subtitle: "للمحترفين فقط!" },
+};
+const cfg = SUDOKU_LEVELS[levelId] || SUDOKU_LEVELS[1];
+const N = cfg.N, boxR = cfg.boxR, boxC = cfg.boxC;
+const boxColsCount = N / boxC;
+const FULL_MASK = (1 << N) - 1;
+
+document.getElementById("theme-title").textContent = cfg.title;
+document.getElementById("theme-subtitle").textContent = cfg.subtitle;
+
+function boxIndex(r, c) { return Math.floor(r / boxR) * boxColsCount + Math.floor(c / boxC); }
+function shuffle(arr) {
+  for (let i = arr.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [arr[i], arr[j]] = [arr[j], arr[i]]; }
+  return arr;
+}
+function popcount(x) { let n = 0; while (x) { n += x & 1; x >>= 1; } return n; }
+
+function makeFullGrid() {
+  const grid = Array(N * N).fill(0);
+  const rowMask = Array(N).fill(0), colMask = Array(N).fill(0), boxMask = Array(N).fill(0);
+  function backtrack(pos) {
+    if (pos === N * N) return true;
+    const r = Math.floor(pos / N), c = pos % N, b = boxIndex(r, c);
+    const avail = FULL_MASK & ~(rowMask[r] | colMask[c] | boxMask[b]);
+    const candidates = [];
+    for (let v = 0; v < N; v++) if (avail & (1 << v)) candidates.push(v);
+    shuffle(candidates);
+    for (const v of candidates) {
+      const bit = 1 << v;
+      grid[pos] = v + 1; rowMask[r] |= bit; colMask[c] |= bit; boxMask[b] |= bit;
+      if (backtrack(pos + 1)) return true;
+      grid[pos] = 0; rowMask[r] &= ~bit; colMask[c] &= ~bit; boxMask[b] &= ~bit;
+    }
+    return false;
+  }
+  backtrack(0);
+  return grid;
+}
+
+function countSolutions(grid, limit) {
+  const rowMask = Array(N).fill(0), colMask = Array(N).fill(0), boxMask = Array(N).fill(0);
+  for (let i = 0; i < N * N; i++) {
+    if (grid[i]) {
+      const r = Math.floor(i / N), c = i % N, bit = 1 << (grid[i] - 1);
+      rowMask[r] |= bit; colMask[c] |= bit; boxMask[boxIndex(r, c)] |= bit;
+    }
+  }
+  let count = 0;
+  function backtrack() {
+    let bestPos = -1, bestMask = 0, bestCount = 99;
+    for (let i = 0; i < N * N; i++) {
+      if (grid[i]) continue;
+      const r = Math.floor(i / N), c = i % N, b = boxIndex(r, c);
+      const avail = FULL_MASK & ~(rowMask[r] | colMask[c] | boxMask[b]);
+      const cnt = popcount(avail);
+      if (cnt === 0) return false;
+      if (cnt < bestCount) { bestCount = cnt; bestMask = avail; bestPos = i; if (cnt === 1) break; }
+    }
+    if (bestPos === -1) { count++; return count >= limit; }
+    const r = Math.floor(bestPos / N), c = bestPos % N, b = boxIndex(r, c);
+    for (let v = 0; v < N; v++) {
+      const bit = 1 << v;
+      if (!(bestMask & bit)) continue;
+      grid[bestPos] = v + 1; rowMask[r] |= bit; colMask[c] |= bit; boxMask[b] |= bit;
+      const stop = backtrack();
+      grid[bestPos] = 0; rowMask[r] &= ~bit; colMask[c] &= ~bit; boxMask[b] &= ~bit;
+      if (stop) return true;
+    }
+    return false;
+  }
+  backtrack();
+  return count;
+}
+
+function makePuzzle() {
+  const solved = makeFullGrid();
+  const puzzle = solved.slice();
+  const positions = shuffle([...Array(N * N).keys()]);
+  let removed = 0;
+  for (const pos of positions) {
+    if (removed >= cfg.removed) break;
+    const backup = puzzle[pos];
+    puzzle[pos] = 0;
+    const count = countSolutions(puzzle.slice(), 2);
+    if (count !== 1) puzzle[pos] = backup;
+    else removed++;
+  }
+  return { puzzle, solved };
+}
+
+let state = null;
+
+function start() {
+  document.getElementById("game-area").hidden = true;
+  document.getElementById("loading").hidden = false;
+  setTimeout(() => {
+    const { puzzle, solved } = makePuzzle();
+    state = {
+      given: puzzle.slice(),
+      current: puzzle.slice(),
+      solved,
+      selected: null,
+      hints: 0,
+    };
+    document.getElementById("loading").hidden = true;
+    document.getElementById("game-area").hidden = false;
+    document.getElementById("hints-count").textContent = 0;
+    renderBoard();
+    renderNumpad();
+  }, 30);
+}
+
+function getConflicts() {
+  const conflicts = new Set();
+  const g = state.current;
+  for (let i = 0; i < N * N; i++) {
+    if (!g[i]) continue;
+    const r = Math.floor(i / N), c = i % N, b = boxIndex(r, c);
+    for (let j = 0; j < N * N; j++) {
+      if (i === j || !g[j]) continue;
+      const r2 = Math.floor(j / N), c2 = j % N, b2 = boxIndex(r2, c2);
+      if (g[i] === g[j] && (r === r2 || c === c2 || b === b2)) { conflicts.add(i); conflicts.add(j); }
+    }
+  }
+  return conflicts;
+}
+
+function renderBoard() {
+  const board = document.getElementById("board");
+  board.style.gridTemplateColumns = `repeat(${N}, minmax(0,1fr))`;
+  const cellSize = N <= 4 ? 68 : N <= 6 ? 56 : 42;
+  board.style.width = (cellSize * N) + "px";
+  board.innerHTML = "";
+  const conflicts = getConflicts();
+  for (let i = 0; i < N * N; i++) {
+    const r = Math.floor(i / N), c = i % N;
+    const el = document.createElement("div");
+    el.className = "scell" + (state.given[i] ? " given" : "") + (conflicts.has(i) ? " conflict" : "") + (state.selected === i ? " selected" : "");
+    if ((c + 1) % boxC === 0 && c !== N - 1) el.classList.add("box-border-right");
+    if ((r + 1) % boxR === 0 && r !== N - 1) el.classList.add("box-border-bottom");
+    el.style.width = cellSize + "px";
+    el.style.height = cellSize + "px";
+    el.style.fontSize = (cellSize * 0.45) + "px";
+    el.textContent = state.current[i] ? state.current[i] : "";
+    el.onclick = () => { if (!state.given[i]) { state.selected = i; renderBoard(); } };
+    board.appendChild(el);
+  }
+}
+
+function renderNumpad() {
+  const pad = document.getElementById("numpad");
+  pad.innerHTML = "";
+  for (let v = 1; v <= N; v++) {
+    const b = document.createElement("div");
+    b.className = "num-btn";
+    b.textContent = v;
+    b.onclick = () => placeNumber(v);
+    pad.appendChild(b);
+  }
+  const erase = document.createElement("div");
+  erase.className = "num-btn erase";
+  erase.textContent = "🗑";
+  erase.onclick = () => placeNumber(0);
+  pad.appendChild(erase);
+}
+
+function placeNumber(v) {
+  if (state.selected == null) return;
+  state.current[state.selected] = v;
+  Fakker.FX.playTone([440], 0.06);
+  renderBoard();
+  checkWin();
+}
+
+function checkWin() {
+  if (state.current.includes(0)) return;
+  const conflicts = getConflicts();
+  if (conflicts.size > 0) return;
+  onWin();
+}
+
+function computeStars() {
+  if (state.hints === 0) return 3;
+  if (state.hints <= 2) return 2;
+  return 1;
+}
+
+function onWin() {
+  const stars = computeStars();
+  Fakker.Progress.record("sudoku", levelId, { stars, score: N });
+  const bonus = Fakker.Economy.awardCompletion("سودوكو");
+  refreshWallet();
+  Fakker.FX.confetti();
+  Fakker.FX.win();
+  document.getElementById("win-title").textContent = Fakker.FX.randomPraise();
+  document.getElementById("win-stars").textContent = "★".repeat(stars) + "☆".repeat(3 - stars);
+  document.getElementById("win-desc").textContent = "أكملت اللغز بنجاح! +" + bonus.points + " نقطة 🪙";
+  document.getElementById("win-overlay").hidden = false;
+}
+
+document.getElementById("btn-hint").onclick = () => {
+  const empties = [];
+  for (let i = 0; i < N * N; i++) if (!state.given[i] && state.current[i] !== state.solved[i]) empties.push(i);
+  if (!empties.length) return;
+  const pick = empties[Math.floor(Math.random() * empties.length)];
+  state.current[pick] = state.solved[pick];
+  state.hints++;
+  document.getElementById("hints-count").textContent = state.hints;
+  Fakker.Economy.spendHint();
+  refreshWallet();
+  state.selected = pick;
+  renderBoard();
+  checkWin();
+};
+
+document.getElementById("btn-check").onclick = () => { renderBoard(); };
+
+document.getElementById("btn-replay").onclick = () => { document.getElementById("win-overlay").hidden = true; start(); };
+document.getElementById("btn-back").onclick = () => { location.href = "../index.html"; };
+
+start();
+</script>
+</body>
+</html>
