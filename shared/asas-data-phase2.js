@@ -70,6 +70,6 @@ const ASAS_STORY_ORDER = [
 ];
 
 ASAS_STAGES.push(
-  { id: 10, key: "sentence-order", title: "رتّب الكلمات لجملة", icon: "🧱", kind: "sentence-order", items: ASAS_SENTENCE_ORDER },
-  { id: 11, key: "story-order", title: "رتّب الجمل لقصة", icon: "📜", kind: "story-order", items: ASAS_STORY_ORDER }
+  { id: 22, key: "sentence-order", title: "رتّب الكلمات لجملة", icon: "🧱", kind: "sentence-order", items: ASAS_SENTENCE_ORDER },
+  { id: 23, key: "story-order", title: "رتّب الجمل لقصة", icon: "📜", kind: "story-order", items: ASAS_STORY_ORDER }
 );
