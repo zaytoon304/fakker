@@ -161,6 +161,26 @@
   .story-card.numbered .badge { background: var(--asas-gold); color: #fff; }
   .story-card .txt { font-family: 'Amiri','Tajawal',serif; font-size: 16px; flex: 1; line-height: 1.6; }
   .story-card .mini-listen { flex-shrink: 0; font-size: 20px; padding: 4px 8px; }
+
+  /* ---------- قِطع القراءة ---------- */
+  .passage-card { max-width: 620px; margin: 14px auto; padding: 26px 24px; }
+  .passage-title { font-family: 'Reem Kufi','Tajawal',sans-serif; font-size: 22px; text-align: center; color: var(--asas-gold); margin-bottom: 4px; }
+  .passage-counter { text-align: center; font-size: 13px; opacity: .7; margin-bottom: 14px; }
+  .passage-story { font-family: 'Amiri','Tajawal',serif; font-size: 21px; line-height: 2.1; text-align: justify; }
+  .section-label { font-weight: 800; font-size: 14px; color: var(--asas-gold); margin: 18px 0 8px; display: flex; align-items: center; gap: 6px; }
+  .chip-row { display: flex; flex-wrap: wrap; gap: 8px; }
+  .chip {
+    background: var(--accent-soft); color: var(--text); font-family: 'Amiri','Tajawal',serif; font-size: 16px;
+    padding: 6px 14px; border-radius: 999px;
+  }
+  .dict-chip { background: linear-gradient(160deg, var(--asas-gold-light), var(--asas-gold)); color: #3a2405; font-weight: 800; }
+  .skill-note-card { background: #fef3c7; color: #92400e; border-radius: 12px; padding: 12px 14px; font-family: 'Amiri','Tajawal',serif; font-size: 16px; display: flex; align-items: center; gap: 10px; }
+  .comp-row { display: flex; align-items: center; gap: 10px; padding: 8px 0; border-bottom: 1px solid var(--accent-soft); }
+  .comp-row:last-child { border-bottom: none; }
+  .comp-num { width: 24px; height: 24px; border-radius: 50%; background: var(--accent-soft); color: var(--accent); font-size: 12px; font-weight: 900; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+  .comp-text { flex: 1; font-size: 15px; }
+  .mini-btn { flex-shrink: 0; font-size: 16px; padding: 4px 8px; border-radius: 8px; background: var(--accent-soft); cursor: pointer; }
+  .dict-sentence-card { background: var(--card-bg); border: 2px solid var(--asas-gold-light); border-radius: 12px; padding: 12px 16px; font-family: 'Amiri','Tajawal',serif; font-size: 19px; display: flex; align-items: center; gap: 10px; margin-top: 8px; }
 </style>
 </head>
 <body>
@@ -260,6 +280,41 @@
         <div class="nav-btn" id="sto-clear">امسح الترتيب ↺</div>
       </div>
     </div>
+
+    <!-- وضع قِطع القراءة -->
+    <div id="passage-mode" hidden>
+      <div class="passage-counter" id="pg-counter"></div>
+      <div class="card passage-card">
+        <div class="passage-title" id="pg-title"></div>
+        <div class="listen-btn" id="pg-listen-story" style="display:block; width:fit-content; margin:0 auto 16px;">🔊 اسمع القصة</div>
+        <div class="passage-story" id="pg-story"></div>
+
+        <div id="pg-vocab-section" hidden>
+          <div class="section-label">🔠 كلمات أساسية</div>
+          <div class="chip-row" id="pg-vocab"></div>
+        </div>
+
+        <div id="pg-skill-section" hidden>
+          <div class="section-label">💡 لاحظ</div>
+          <div class="skill-note-card"><span id="pg-skill-listen" class="mini-btn">🔊</span><span id="pg-skill-text"></span></div>
+        </div>
+
+        <div id="pg-comp-section" hidden>
+          <div class="section-label">❓ أسئلة الفهم — ناقشها بصوت عالٍ</div>
+          <div id="pg-comp-list"></div>
+        </div>
+
+        <div id="pg-dict-section" hidden>
+          <div class="section-label">✏️ إملاء كلمات</div>
+          <div class="chip-row" id="pg-dict-words"></div>
+          <div class="section-label">✏️ إملاء جملة</div>
+          <div class="dict-sentence-card"><span id="pg-dict-sent-listen" class="mini-btn">🔊</span><span id="pg-dict-sent-text"></span></div>
+        </div>
+      </div>
+      <div style="text-align:center; margin-top:16px;">
+        <div class="listen-btn" id="pg-next" style="background:linear-gradient(135deg,var(--accent),#5b21b6);">أنهيت هذا المقطع، التالي ← 📖</div>
+      </div>
+    </div>
   </section>
 
 </div>
@@ -285,6 +340,7 @@
 <script src="../shared/asas-data.js"></script>
 <script src="../shared/asas-data-phase3.js"></script>
 <script src="../shared/asas-data-phase2.js"></script>
+<script src="../shared/asas-data-phase4.js"></script>
 <script>
 const GAME_ID = "asas";
 const profile = Fakker.Profile.get();
@@ -361,7 +417,7 @@ let session = null; // { queue, qIndex, current, tries, correctFirstTry, streak,
 
 function learnedKey(stage) { return "fk_asas_learned_" + stage.key; }
 
-const ALL_MODE_IDS = ["learn-mode", "practice-mode", "sentord-mode", "storyord-mode"];
+const ALL_MODE_IDS = ["learn-mode", "practice-mode", "sentord-mode", "storyord-mode", "passage-mode"];
 function showOnlyMode(id) {
   ALL_MODE_IDS.forEach((m) => { document.getElementById(m).hidden = m !== id; });
 }
@@ -381,6 +437,12 @@ function openStage(stage) {
     document.getElementById("mode-pills").hidden = true;
     showOnlyMode("storyord-mode");
     startStoryOrder();
+    return;
+  }
+  if (stage.kind === "passage") {
+    document.getElementById("mode-pills").hidden = true;
+    showOnlyMode("passage-mode");
+    startPassages();
     return;
   }
 
@@ -762,10 +824,106 @@ function endPractice() {
   document.getElementById("win-overlay").hidden = false;
 }
 
+// ---------------- قِطع القراءة ----------------
+let pgSession = null;
+
+function startPassages() {
+  showOnlyMode("passage-mode");
+  pgSession = { index: 0 };
+  renderPassage();
+}
+
+function renderPassage() {
+  const p = curStage.items[pgSession.index];
+  window.speechSynthesis && window.speechSynthesis.cancel();
+
+  document.getElementById("pg-counter").textContent = `${pgSession.index + 1} من ${curStage.items.length}`;
+  document.getElementById("pg-title").textContent = p.title;
+  document.getElementById("pg-story").textContent = p.story;
+  document.getElementById("pg-listen-story").onclick = () => speak(p.story);
+  setMascot("اسمع القصة، وناقش الأسئلة براحتك 📖");
+
+  const vocabSection = document.getElementById("pg-vocab-section");
+  if (p.vocab && p.vocab.length) {
+    vocabSection.hidden = false;
+    const wrap = document.getElementById("pg-vocab");
+    wrap.innerHTML = "";
+    p.vocab.forEach((w) => {
+      const el = document.createElement("div");
+      el.className = "chip";
+      el.textContent = w;
+      el.onclick = () => speak(w);
+      wrap.appendChild(el);
+    });
+  } else vocabSection.hidden = true;
+
+  const skillSection = document.getElementById("pg-skill-section");
+  if (p.skillNote) {
+    skillSection.hidden = false;
+    document.getElementById("pg-skill-text").textContent = p.skillNote;
+    document.getElementById("pg-skill-listen").onclick = () => speak(p.skillNote);
+  } else skillSection.hidden = true;
+
+  const compSection = document.getElementById("pg-comp-section");
+  const questions = p.comprehension || p.questions;
+  if (questions && questions.length) {
+    compSection.hidden = false;
+    const list = document.getElementById("pg-comp-list");
+    list.innerHTML = "";
+    questions.forEach((q, i) => {
+      const row = document.createElement("div");
+      row.className = "comp-row";
+      row.innerHTML = `<span class="comp-num">${i + 1}</span><span class="comp-text">${q}</span><span class="mini-btn">🔊</span>`;
+      row.querySelector(".mini-btn").onclick = () => speak(q);
+      list.appendChild(row);
+    });
+  } else compSection.hidden = true;
+
+  const dictSection = document.getElementById("pg-dict-section");
+  if (p.dictationWords && p.dictationWords.length) {
+    dictSection.hidden = false;
+    const wrap = document.getElementById("pg-dict-words");
+    wrap.innerHTML = "";
+    p.dictationWords.forEach((w) => {
+      const el = document.createElement("div");
+      el.className = "chip dict-chip";
+      el.textContent = w;
+      el.onclick = () => speak(w);
+      wrap.appendChild(el);
+    });
+    document.getElementById("pg-dict-sent-text").textContent = p.dictationSentence;
+    document.getElementById("pg-dict-sent-listen").onclick = () => speak(p.dictationSentence);
+  } else dictSection.hidden = true;
+}
+
+document.getElementById("pg-next").onclick = () => {
+  const result = Fakker.Economy.awardCorrect(1);
+  refreshWallet();
+  pgSession.index++;
+  if (pgSession.index >= curStage.items.length) return endPassages();
+  renderPassage();
+  window.scrollTo({ top: 0, behavior: "smooth" });
+};
+
+function endPassages() {
+  window.speechSynthesis && window.speechSynthesis.cancel();
+  Fakker.Progress.record("asas", curStage.id, { stars: 3, score: curStage.items.length });
+  Fakker.Analytics.logPlay("asas");
+  Fakker.Economy.awardCompletion("أساس القراءة");
+  refreshWallet();
+  Fakker.FX.confetti();
+  Fakker.FX.win();
+  document.getElementById("win-title").textContent = "أحسنت! أنهيت كل المقاطع 📖✨";
+  document.getElementById("win-stars").textContent = "★★★";
+  document.getElementById("win-desc").textContent = `قرأت ${curStage.items.length} مقطعاً`;
+  document.getElementById("win-overlay").hidden = false;
+}
+
 document.getElementById("btn-replay").onclick = () => {
   document.getElementById("win-overlay").hidden = true;
   if (curStage.kind === "sentence-order") startSentenceOrder();
   else if (curStage.kind === "story-order") startStoryOrder();
+  else if (curStage.kind === "passage") startPassages();
   else startPractice();
 };
 document.getElementById("btn-back").onclick = () => { document.getElementById("win-overlay").hidden = true; backToMap(); };
